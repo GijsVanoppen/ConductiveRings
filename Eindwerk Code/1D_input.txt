@@ -1,0 +1,5 @@
+number of rings (N):3
+lattice constant (a): 0.8
+radius (r):0.75
+wire resistivity (R):1
+junction resistance (R_j):1

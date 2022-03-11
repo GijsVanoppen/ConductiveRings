@@ -1,0 +1,5 @@
+number of rings (N):20
+Number of iterations (a_iterations):50
+radius (r):1
+wire resistivity (R):1
+junction resistance (R_j):1
