@@ -1,5 +1,7 @@
-number of rings (N):20
+number of rings (N):10000
 lattice constant (a): 1
 radius (r):0.75
 wire resistivity (R):1
 junction resistance (R_j):1
+print G:0
+print V:1

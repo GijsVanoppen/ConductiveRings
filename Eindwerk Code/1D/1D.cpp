@@ -13,6 +13,7 @@
 
 
 
+
 using namespace std;
 
 double dist(std::array<double,2> point_1, std::array<double,2> point_2){
@@ -320,7 +321,7 @@ class File_Handler {
         return parameter;
     }
 
-    tuple<int, double, double, double, double> handle_input(string input_file_name){
+    tuple<int, double, double, double, double, bool, bool> handle_input(string input_file_name){
         ifstream input_file(input_file_name);
         string line;
         int N;
@@ -328,6 +329,8 @@ class File_Handler {
         double r;
         double R;
         double R_j;
+        bool print_G;
+        bool print_V;
         int counter {0};
         while (getline (input_file, line)) {
             cout << line << endl;
@@ -341,10 +344,22 @@ class File_Handler {
                 R = stof(extract_parameter_from_string(line));
             } else if (counter == 4) {
                 R_j = stof(extract_parameter_from_string(line));
+            } else if (counter == 5) {
+                if (extract_parameter_from_string(line) == "1"){
+                    print_G = true;
+                } else {
+                    print_G = false;
+                }
+            } else if (counter == 6) {
+                if (extract_parameter_from_string(line) == "1"){
+                    print_V = true;
+                } else {
+                    print_V = false;
+                }
             }
             counter++;
         }
-        auto parameters = make_tuple(N, a, r, R, R_j);
+        auto parameters = make_tuple(N, a, r, R, R_j, print_G, print_V);
         input_file.close();
         return parameters;
     }
@@ -395,23 +410,28 @@ int main(){
     double r = get<2>(parameters);
     double R = get<3>(parameters);
     double R_j = get<4>(parameters);
-
+    bool print_G = get<5>(parameters);
+    bool print_V = get<6>(parameters);
     valarray<array<double, 3>> circles = generate_circles(N, a, r);
     file_handler.write_circles_to_file(circles, "circles.txt");
 
     Mat G(4*(N-1), 4*(N-1));
 
+    //---BUILDING THE MATRIX---
     cout << "Building matrix...\n";
-    for (const auto& circle: circles){
-        cout << circle.front() << " " << circle[1] << endl;
-    }
+    
     G.build_matrix(circles, r, R, R_j);
-
+    
+    if (print_G){
+        G.print();
+    }
 
     //---SOLVING THE MATRIX---
-    G.print();
     auto V = G.solve_matrix(G.I);
-    cout << endl << "Solutions:\n" << V << endl;
+    
+    if (print_V) {
+        cout << endl << "Solutions:\n" << V << endl;
+    }
 
     cout << "END OF MAIN" << endl;
     return 0;
