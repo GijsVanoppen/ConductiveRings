@@ -7,6 +7,7 @@
 #include <fstream>
 #include <string>
 #include <random>
+#include <chrono>
 
 
 
@@ -15,6 +16,8 @@
 
 
 using namespace std;
+
+
 
 double dist(std::array<double,2> point_1, std::array<double,2> point_2){
     //returns the distance between two points
@@ -26,27 +29,33 @@ double dist_circles(std::array<double,3> c_1, std::array<double,3> c_2){
     return sqrt(pow(c_1.front()-c_2.front(),2) + pow(c_1[1]-c_2[1], 2));
 }
 
-valarray<array<double, 3>> generate_circles(int N, double a, double r) {
-    
-    //rng
-    using seed_dist_t = std::uniform_int_distribution<size_t>;
-    std::random_device dev;
-    seed_dist_t seed_distr(0, std::numeric_limits<size_t>::max());
-    auto seed = seed_distr(dev);
-    std::mt19937_64 engine(seed);
-    auto distr = bind(std::uniform_real_distribution<double>(-1.0, 1.0),engine);
-    
-    double deviation_coefficient = -a/4 + 0.25*sqrt(8*pow(r,2) - pow(a,2));  //determines the max value the circles may deviate from regular lattice
-    
+valarray<array<double, 3>> generate_circles(int N, double a, double r, bool wiggle) {
     std::valarray<std::array<double, 3>> circles(N);
-    for (int i {1}; i < N-1; i++) {
-        circles[i][0] = a*i + distr()*deviation_coefficient;      //x values of circle center, with a small deviation from regular lattice (distr())
-        circles[i][1] = distr()*deviation_coefficient;            //y values of circle center, with a small deviation from regular lattice (distr())
-        circles[i][2] = r;                                        //circle radius
-    } 
-    circles[0][2] = r;              //first circle, no deviations from regular lattice
-    circles[N-1][0] = a*(N-1);      //last circle, no deviations from regular lattice
-    circles[N-1][2] = r;
+    if (wiggle) {
+        //rng
+        using seed_dist_t = std::uniform_int_distribution<size_t>;
+        std::random_device dev;
+        seed_dist_t seed_distr(0, std::numeric_limits<size_t>::max());
+        auto seed = seed_distr(dev);
+        std::mt19937_64 engine(seed);
+        auto distr = bind(std::uniform_real_distribution<double>(-1.0, 1.0),engine);
+        
+        double deviation_coefficient = -a/4 + 0.25*sqrt(8*pow(r,2) - pow(a,2));  //determines the max value the circles may deviate from regular lattice
+        
+        for (int i {1}; i < N-1; i++) {
+            circles[i][0] = a*i + distr()*deviation_coefficient;      //x values of circle center, with a small deviation from regular lattice (distr())
+            circles[i][1] = distr()*deviation_coefficient;            //y values of circle center, with a small deviation from regular lattice (distr())
+            circles[i][2] = r;                                        //circle radius
+        } 
+        circles[0][2] = r;              //first circle, no deviations from regular lattice
+        circles[N-1][0] = a*(N-1);      //last circle, no deviations from regular lattice
+        circles[N-1][2] = r;
+    } else {
+        for (int i = 0; i < N; i++) {   //no deviations, regular pattern and y = 0
+            circles[i][0] = a*i;
+            circles[i][2] = r;
+        }
+    }
     return circles;
 }
 
@@ -219,15 +228,18 @@ class Mat {
         //---FIRST CIRCLE---
 
         auto junctions = calc_junctions_first(circles, r);
+
         //node right up
         R_ver = calc_wire_resistance(circles[0], junctions[2], junctions[3], R);
         R_hor = calc_wire_resistance(circles[0], junctions[0], junctions[2], R);
+        cout << R_ver << " " << R_hor << endl;
         matrix_[0][0] = R_ver*R_j + R_hor*R_j + R_hor*R_ver;
         matrix_[0][1] = -R_hor*R_j;
         matrix_[0][2] = -R_hor*R_ver;
 
         //node right down
         R_hor = calc_wire_resistance(circles[0], junctions[1], junctions[3], R);
+        cout << R_ver << " " << R_hor << endl;
         matrix_[1][0] = -R_hor*R_j;
         matrix_[1][1] = R_ver*R_j + R_hor*R_j + R_hor*R_ver;
         matrix_[1][3] = -R_hor*R_ver;
@@ -240,16 +252,19 @@ class Mat {
 
         for (int i = 1; i < circles.size()-1; i++) {
             junctions = calc_junctions(i, circles, r);
+
             //node left up
             R_ver = calc_wire_resistance(circles[i], junctions[0], junctions[1], R);
             R_hor = calc_wire_resistance(circles[i], junctions[0], junctions[2], R);
+            cout << R_ver << " " << R_hor << endl;
             matrix_[i*4-2][i*4-4] = -R_ver*R_hor;
             matrix_[i*4-2][i*4-2] = R_ver*R_hor + R_j*R_hor + R_j*R_ver;
             matrix_[i*4-2][i*4-1] = -R_j*R_hor;
-            matrix_[i*4-2][i*4] -R_j*R_ver;
+            matrix_[i*4-2][i*4] = -R_j*R_ver;
 
             //node left down
             R_hor = calc_wire_resistance(circles[i], junctions[1], junctions[3], R);
+            cout << R_ver << " " << R_hor << endl;
             matrix_[i*4-1][i*4-3] = -R_ver*R_hor;
             matrix_[i*4-1][i*4-2] = -R_j*R_hor;
             matrix_[i*4-1][i*4-1] = R_ver*R_hor + R_j*R_hor + R_j*R_ver;
@@ -258,6 +273,7 @@ class Mat {
             //node right up
             R_ver = calc_wire_resistance(circles[i], junctions[2], junctions[3], R);
             R_hor = calc_wire_resistance(circles[i], junctions[0], junctions[2], R);
+            cout << R_ver << " " << R_hor << endl;
             matrix_[i*4][i*4-2] = -R_ver*R_j;
             matrix_[i*4][i*4] = R_ver*R_j + R_hor*R_j + R_hor*R_ver;
             matrix_[i*4][i*4+1] = -R_hor*R_j;
@@ -265,6 +281,7 @@ class Mat {
 
             //node right down
             R_hor = calc_wire_resistance(circles[i], junctions[1], junctions[3], R);
+            cout << R_ver << " " << R_hor << endl;
             matrix_[i*4+1][i*4-1] = -R_ver*R_j;
             matrix_[i*4+1][i*4] = -R_hor*R_j;
             matrix_[i*4+1][i*4+1] = R_ver*R_j + R_hor*R_j + R_hor*R_ver;
@@ -273,15 +290,18 @@ class Mat {
         //---FINAL CIRCLE---
 
         junctions = calc_junctions_last(circles, r);
+
         //node left up
         R_ver = calc_wire_resistance(circles[circles.size()-1], junctions[0], junctions[1], R);
         R_hor = calc_wire_resistance(circles[circles.size()-1], junctions[0], junctions[2], R);
+        cout << R_ver << " " << R_hor << endl;
 
         matrix_[nr_rows_-2][nr_rows_-4] = -R_ver*R_hor;
         matrix_[nr_rows_-2][nr_rows_-2] = R_ver*R_hor + R_j*R_hor + R_j*R_ver;
         matrix_[nr_rows_-2][nr_rows_-1] = -R_j*R_hor;
         //node left down
         R_hor = calc_wire_resistance(circles[circles.size()-1], junctions[1], junctions[3], R);
+        cout << R_ver << " " << R_hor << endl;
         matrix_[nr_rows_-1][nr_rows_-3] = -R_ver*R_hor;
         matrix_[nr_rows_-1][nr_rows_-2] = -R_j*R_hor;
         matrix_[nr_rows_-1][nr_rows_-1] = R_ver*R_hor + R_j*R_hor + R_j*R_ver;
@@ -321,7 +341,7 @@ class File_Handler {
         return parameter;
     }
 
-    tuple<int, double, double, double, double, bool, bool> handle_input(string input_file_name){
+    tuple<int, double, double, double, double, bool, bool, bool> handle_input(string input_file_name){
         ifstream input_file(input_file_name);
         string line;
         int N;
@@ -331,6 +351,7 @@ class File_Handler {
         double R_j;
         bool print_G;
         bool print_V;
+        bool wiggle;
         int counter {0};
         while (getline (input_file, line)) {
             cout << line << endl;
@@ -356,10 +377,16 @@ class File_Handler {
                 } else {
                     print_V = false;
                 }
+            } else if (counter == 7) {
+                if (extract_parameter_from_string(line) == "1"){
+                    wiggle = true;
+                } else {
+                    wiggle = false;
+                }
             }
             counter++;
         }
-        auto parameters = make_tuple(N, a, r, R, R_j, print_G, print_V);
+        auto parameters = make_tuple(N, a, r, R, R_j, print_G, print_V, wiggle);
         input_file.close();
         return parameters;
     }
@@ -389,14 +416,23 @@ class File_Handler {
 
 };
 
+void timing(chrono::time_point<chrono::system_clock> time1, chrono::time_point<chrono::system_clock> time2){
+	//prints time between time1 and time 2
+	const auto duration_us = chrono::duration_cast<chrono::microseconds>(time2 - time1);
+	const int min = duration_us.count()/60000000;
+	const int s = duration_us.count()/1000000 - min*60;
+	const int ms = duration_us.count()/1000 - min*60000 - s*1000;
+	const int um = duration_us.count() - min*60000000 - s*1000000 - ms*1000;
+	cout << min << " min, " << s << " s, " << ms << " ms, " << um << " um \n";
+}
 
 
 
 
 
 int main(){
+    const auto time_start = chrono::high_resolution_clock::now();
     cout << "START OF MAIN" << endl;
-    
     //---INITIALISATIONS---
     
     File_Handler file_handler;
@@ -412,7 +448,8 @@ int main(){
     double R_j = get<4>(parameters);
     bool print_G = get<5>(parameters);
     bool print_V = get<6>(parameters);
-    valarray<array<double, 3>> circles = generate_circles(N, a, r);
+    bool wiggle = get<7>(parameters);
+    valarray<array<double, 3>> circles = generate_circles(N, a, r, wiggle);
     file_handler.write_circles_to_file(circles, "circles.txt");
 
     Mat G(4*(N-1), 4*(N-1));
@@ -421,7 +458,9 @@ int main(){
     cout << "Building matrix...\n";
     
     G.build_matrix(circles, r, R, R_j);
-    
+    const auto time_build = chrono::high_resolution_clock::now();
+    cout << "Time to build matrix: \n";
+    timing(time_start, time_build);
     if (print_G){
         G.print();
     }
@@ -432,7 +471,17 @@ int main(){
     if (print_V) {
         cout << endl << "Solutions:\n" << V << endl;
     }
-
+    cout << "Time to solve matrix: \n";
+    const auto time_end = chrono::high_resolution_clock::now();
+    timing(time_build, time_end);
     cout << "END OF MAIN" << endl;
+    cout << "Total time: \n";
+    timing(time_start, time_end);
     return 0;
 }
+
+/*
+for (const auto& junction: junctions){
+    cout << junction[0] << " " << junction[1] << endl;
+}
+*/

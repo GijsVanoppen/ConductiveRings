@@ -1,8 +1,8 @@
-number of rings (N):100
+number of rings (N):3
 lattice constant (a): 1
 radius (r):0.75
 wire resistivity (R):1
 junction resistance (R_j):1
-print G:0
-print V:1
+print G?:1
+print V?:1
 variations circle centers (wiggle):0

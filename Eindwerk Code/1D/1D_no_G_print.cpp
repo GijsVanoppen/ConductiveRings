@@ -7,6 +7,7 @@
 #include <fstream>
 #include <string>
 #include <random>
+#include <chrono>
 
 
 
@@ -281,6 +282,7 @@ tuple<int, double, double, double, double> handle_input(string input_file_name){
 
 int main(){
     cout << "START OF MAIN" << endl;
+    auto time_start = chrono::steady_clock::now();
     
     //---INITIALISATIONS---
 
@@ -385,6 +387,8 @@ int main(){
     cout << endl << "Solutions:\n" << V << endl;
 
     cout << "END OF MAIN" << endl;
+    auto time_stop = chrono::steady_clock::now();
+    cout << "Time to run: " <<
     return 0;
 }
 
