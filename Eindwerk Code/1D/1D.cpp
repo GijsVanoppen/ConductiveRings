@@ -9,23 +9,45 @@
 #include <random>
 
 
-// #include "..\headers\Mat.cpp"
-#include "..\headers\generate_circles.cpp"
-#include "..\headers\dist.h"
-#include "..\headers\dist_circles.h"
-#include "..\headers\calc_junctions.h"
-#include "..\headers\calc_junctions_first.h"
-#include "..\headers\calc_junctions_last.h"
-#include "..\headers\calc_wire_resistance.h"
-#include "..\headers\write_circles_to_file.cpp"
-#include "..\headers\write_results_to_file.h"
-//#include "..\headers\Mat.h"
+
+
+
 
 using namespace std;
 
+double dist(std::array<double,2> point_1, std::array<double,2> point_2){
+    //returns the distance between two points
+    return sqrt(pow(point_1.front()-point_2.front(),2) + pow(point_1.back()-point_2.back(), 2));
+}
 
+double dist_circles(std::array<double,3> c_1, std::array<double,3> c_2){
+    //returns the distance between two circle centers. the arrays contain {x_center, y_center, r}
+    return sqrt(pow(c_1.front()-c_2.front(),2) + pow(c_1[1]-c_2[1], 2));
+}
 
-
+valarray<array<double, 3>> generate_circles(int N, double a, double r) {
+    
+    //rng
+    using seed_dist_t = std::uniform_int_distribution<size_t>;
+    std::random_device dev;
+    seed_dist_t seed_distr(0, std::numeric_limits<size_t>::max());
+    auto seed = seed_distr(dev);
+    std::mt19937_64 engine(seed);
+    auto distr = bind(std::uniform_real_distribution<double>(-1.0, 1.0),engine);
+    
+    double deviation_coefficient = -a/2 + 0.5*sqrt(8*pow(r,2) - pow(a,2));  //determines the max value the circles may deviate from regular lattice
+    
+    std::valarray<std::array<double, 3>> circles(N);
+    for (int i {1}; i < N-1; i++) {
+        circles[i][0] = a*i + distr()*deviation_coefficient;      //x values of circle center, with a small deviation from regular lattice (distr())
+        circles[i][1] = distr()*deviation_coefficient;            //y values of circle center, with a small deviation from regular lattice (distr())
+        circles[i][2] = r;                                        //circle radius
+    } 
+    circles[0][2] = r;              //first circle, no deviations from regular lattice
+    circles[N-1][0] = a*(N-1);      //last circle, no deviations from regular lattice
+    circles[N-1][2] = r;
+    return circles;
+}
 
 /*
 class Mat {
@@ -165,6 +187,122 @@ double calc_wire_resistance(array<double,3> circle, array<double, 2> point_1, ar
     return (R*acos(1 - 0.5*pow(dist(point_1, point_2)/r,2)));
 }
 
+array<array<double, 2>, 4> calc_junctions(int i, valarray<array<double, 3>> circles, double r) {
+    //returns the coördinates of the junctions that the i-th circle with radius r makes with the other circles in the valarray 
+    //junctions are ordered: left up (1), left down (2), right up (3), right down (4) as seen form the circles center.
+    
+    //determine circle center coörds
+    double x_i = circles[i].front();    //get x value of circle center
+    double y_i = circles[i][1];         //get y value of circle center
+    double x_prev = circles[i-1].front();
+    double y_prev = circles[i-1][1];
+    double x_next = circles[i+1].front();
+    double y_next = circles[i+1][1];
+
+    //between first 2 circles
+    double d = dist_circles(circles[i-1], circles[i]);
+    double alpha = asin((y_i - y_prev)/d);
+    double M_x = x_prev + cos(alpha)*d*0.5; 
+    double M_y = y_prev + sin(alpha)*d*0.5;
+
+    double junction_1_x = M_x - sin(alpha)*sqrt(pow(r,2) - 0.25*pow(d,2));
+    double junction_1_y = M_y + cos(alpha)*sqrt(pow(r,2) - 0.25*pow(d,2));
+    double junction_2_x = M_x + sin(alpha)*sqrt(pow(r,2) - 0.25*pow(d,2));
+    double junction_2_y = M_y - cos(alpha)*sqrt(pow(r,2) - 0.25*pow(d,2));
+    
+    //between last 2 circles
+    d = dist_circles(circles[i], circles[i+1]);
+    alpha = asin((y_next - y_i)/d);
+    M_x = x_i + cos(alpha)*d*0.5;
+    M_y = y_i + sin(alpha)*d*0.5;
+
+    double junction_3_x = M_x - sin(alpha)*sqrt(pow(r,2) - 0.25*pow(d,2));
+    double junction_3_y = M_y + cos(alpha)*sqrt(pow(r,2) - 0.25*pow(d,2));
+    double junction_4_x = M_x + sin(alpha)*sqrt(pow(r,2) - 0.25*pow(d,2));
+    double junction_4_y = M_y - cos(alpha)*sqrt(pow(r,2) - 0.25*pow(d,2));
+
+    //put the coörds in arrays
+    std::array<double,2> junction_1 {junction_1_x, junction_1_y};
+    std::array<double,2> junction_2 {junction_2_x, junction_2_y};
+    std::array<double,2> junction_3 {junction_3_x, junction_3_y};
+    std::array<double,2> junction_4 {junction_4_x, junction_4_y};
+
+    //put the arrays in an array, to be returned
+    std::array<std::array<double, 2>, 4> junctions {junction_1, junction_2, junction_3, junction_4};
+    return junctions;
+}
+
+array<array<double, 2>, 4> calc_junctions_first(valarray<array<double, 3>> circles, double r) {
+    //same as function above, but now only for the first circle
+    
+    //determine circle center coörds
+    double x_i = circles[0].front();    //get x value of circle center
+    double y_i = circles[0][1];         //get y value of circle center
+    double x_next = circles[1].front();
+    double y_next = circles[1][1];
+    
+    //calculate junctions
+    double d = dist_circles(circles[0], circles[1]);
+    double alpha = asin((y_next - y_i)/d);
+    double M_x = x_i + cos(alpha)*d*0.5;
+    double M_y = y_i + sin(alpha)*d*0.5;
+
+    double junction_1_x = 0;
+    double junction_1_y = r;   
+    double junction_2_x = 0;
+    double junction_2_y = -r;
+    double junction_3_x = M_x - sin(alpha)*sqrt(pow(r,2) - 0.25*pow(d,2));
+    double junction_3_y = M_y + cos(alpha)*sqrt(pow(r,2) - 0.25*pow(d,2));
+    double junction_4_x = M_x + sin(alpha)*sqrt(pow(r,2) - 0.25*pow(d,2));
+    double junction_4_y = M_y - cos(alpha)*sqrt(pow(r,2) - 0.25*pow(d,2));
+
+    //put the coörds in arrays
+    array<double,2> junction_1 {junction_1_x, junction_1_y};
+    array<double,2> junction_2 {junction_2_x, junction_2_y};
+    array<double,2> junction_3 {junction_3_x, junction_3_y};
+    array<double,2> junction_4 {junction_4_x, junction_4_y};
+
+    //put the arrays in an array, to be returned
+    array<array<double, 2>, 4> junctions {junction_1, junction_2, junction_3, junction_4};
+    return junctions;
+}
+
+array<array<double, 2>, 4> calc_junctions_last(valarray<array<double, 3>> circles, double r) {
+    //same as function above, but now only for the last circle
+    
+    //determine circle center coörds
+    int N = circles.size();
+    double x_i = circles[N-1].front();    //get x value of circle center
+    double y_i = circles[N-1][1];         //get y value of circle center
+    double x_prev = circles[N-2].front();
+    double y_prev = circles[N-2][1];
+    
+    //calculate junctions
+    double d = dist_circles(circles[N-2], circles[N-1]);
+    double alpha = asin((y_i - y_prev)/d);
+    double M_x = x_prev + cos(alpha)*d*0.5;
+    double M_y = y_prev + sin(alpha)*d*0.5;
+
+    double junction_1_x = M_x - sin(alpha)*sqrt(pow(r,2) - 0.25*pow(d,2));
+    double junction_1_y = M_y + cos(alpha)*sqrt(pow(r,2) - 0.25*pow(d,2));
+    double junction_2_x = M_x + sin(alpha)*sqrt(pow(r,2) - 0.25*pow(d,2));
+    double junction_2_y = M_y - cos(alpha)*sqrt(pow(r,2) - 0.25*pow(d,2));
+    double junction_3_x = circles[N-1].front();
+    double junction_3_y = r;   
+    double junction_4_x = junction_3_x;
+    double junction_4_y = -r;
+
+    //put the coörds in arrays
+    array<double,2> junction_1 {junction_1_x, junction_1_y};
+    array<double,2> junction_2 {junction_2_x, junction_2_y};
+    array<double,2> junction_3 {junction_3_x, junction_3_y};
+    array<double,2> junction_4 {junction_4_x, junction_4_y};
+
+    //put the arrays in an array, to be returned
+    array<array<double, 2>, 4> junctions {junction_1, junction_2, junction_3, junction_4};
+    return junctions;
+}
+
 class Mat {
     private:
     int nr_rows_;
@@ -296,8 +434,6 @@ class Mat {
 
 };
     
-
-
 string extract_parameter_from_string(string str) {
     //returns the part of the string after the ':' sign. Used for handle_input
     string parameter {""};
@@ -337,6 +473,28 @@ tuple<int, double, double, double, double> handle_input(string input_file_name){
     return parameters;
 }
 
+void write_circles_to_file(std::valarray<std::array<double,3>> circles, std::string file_name) {
+    std::ofstream circles_file(file_name);
+    for (const auto& circle: circles) {
+        circles_file << circle.front() << " " << circle[1] << " " << circle.back() << "\n";
+    }
+    circles_file.close();
+}
+
+void write_results_to_file(std::string file_name, std::valarray<std::valarray<double>> results_valarray) {
+    std::ofstream results_file(file_name);
+    for (const auto& result: results_valarray) {
+        for (const auto& value: result) {
+            results_file << value;
+            if (value == result[result.size()-1]) {
+                results_file << "\n";
+            } else {
+                results_file << " ";
+            }
+        }
+    }
+    results_file.close();
+}
 
 int main(){
     cout << "START OF MAIN" << endl;
@@ -360,8 +518,9 @@ int main(){
     valarray<double> I(4*(N-1));
 
     cout << "Building matrix...\n";
-    
+    G.print();
     G.build_matrix(circles, r, R, R_j);
+    cout << "test\n";
 
     //---SOLVING THE MATRIX---
     G.print();
