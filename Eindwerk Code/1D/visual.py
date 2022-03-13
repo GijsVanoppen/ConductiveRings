@@ -1,6 +1,5 @@
 import matplotlib.pyplot as plt
 def draw_circles(file_name, r):
-    plt.axis("equal")
     f = open(file_name, "r")
     for line in f:      #lines are built like this:  circle_x circle_y r
         space_index = line.index(" ")
@@ -11,7 +10,8 @@ def draw_circles(file_name, r):
         c = plt.Circle((circle_x, circle_y), radius = r, fill= False)
         print(circle_x, circle_y, r)
         plt.gca().add_artist(c)
-    plt.axis([-2*r, circle_x + 2*r, -3*r, 3*r])
+    plt.axis([0, circle_x, -3*r, 3*r])
+    plt.gca().set_aspect("equal", adjustable = "box")
     f.close()
     plt.show()
 
