@@ -181,6 +181,105 @@ array<array<double, 2>, 4> calc_junctions_last(valarray<array<double, 3>> circle
     return junctions;
 }
 
+class File_Handler {
+    public:
+    string extract_parameter_from_string(string str) {
+        //returns the part of the string after the ':' sign. Used for handle_input
+        string parameter {""};
+        int start_index = str.find(':') ;
+        for(int i {start_index+1}; i < str.size(); i++) {
+            parameter += str[i];
+        }
+        return parameter;
+    }
+
+    tuple<int, double, double, double, double, bool, bool, bool, bool, int> handle_input(string input_file_name){
+        ifstream input_file(input_file_name);
+        string line;
+        int N;
+        double a;
+        double r;
+        double R;
+        double R_j;
+        bool print_G;
+        bool print_V;
+        bool wiggle;
+        bool stretch;
+        int a_iterations;
+        int counter {0};
+        while (getline (input_file, line)) {
+            cout << line << endl;
+            if (counter == 0) {
+                N = stoi(extract_parameter_from_string(line));
+            } else if (counter == 1){
+                a = stof(extract_parameter_from_string(line));
+            } else if (counter == 2) {
+                r = stof(extract_parameter_from_string(line));
+            } else if (counter == 3) {
+                R = stof(extract_parameter_from_string(line));
+            } else if (counter == 4) {
+                R_j = stof(extract_parameter_from_string(line));
+            } else if (counter == 5) {
+                if (extract_parameter_from_string(line) == "1"){
+                    print_G = true;
+                } else {
+                    print_G = false;
+                }
+            } else if (counter == 6) {
+                if (extract_parameter_from_string(line) == "1"){
+                    print_V = true;
+                } else {
+                    print_V = false;
+                }
+            } else if (counter == 7) {
+                if (extract_parameter_from_string(line) == "1"){
+                    wiggle = true;
+                } else {
+                    wiggle = false;
+                }
+            } else if (counter == 8) {
+                if (extract_parameter_from_string(line) == "1"){
+                    stretch = true;
+                } else {
+                    stretch = false;
+                }
+            } else if (counter == 9){
+                a_iterations = stoi(extract_parameter_from_string(line));
+            }
+            counter++;
+        }
+        auto parameters = make_tuple(N, a, r, R, R_j, print_G, print_V, wiggle, stretch, a_iterations);
+        input_file.close();
+        return parameters;
+    }
+
+    void write_circles_to_file(std::valarray<std::array<double,3>> circles, std::string file_name) {
+        std::ofstream circles_file(file_name);
+        for (const auto& circle: circles) {
+            circles_file << circle.front() << " " << circle[1] << " " << circle.back() << "\n";
+        }
+        circles_file.close();
+    }
+
+    void write_results_to_file(std::string file_name, std::valarray<std::valarray<double>> results_valarray) {
+        std::ofstream results_file(file_name);
+        for (const auto& result: results_valarray) {
+            for (const auto& value: result) {
+                results_file << value;
+                if (value == result[result.size()-1]) {
+                    results_file << "\n";
+                } else {
+                    results_file << " ";
+                }
+            }
+        }
+        results_file.close();
+    }
+
+};
+
+
+
 class Mat {
     private:
     int nr_rows_;
@@ -222,9 +321,11 @@ class Mat {
         }
     }
 
-    void build_matrix(std::valarray<std::array<double, 3>> circles, double r, double R, double R_j){
+    array<double, 2> build_matrix(std::valarray<std::array<double, 3>> circles, double r, double R, double R_j){
         double R_ver;   //'vertical' resistance
         double R_hor;   //'horizontal' resistance
+        double R_1;     //for stretch
+        double R_2;     //for stretch
         //---FIRST CIRCLE---
 
         auto junctions = calc_junctions_first(circles, r);
@@ -232,17 +333,17 @@ class Mat {
         //node right up
         R_ver = calc_wire_resistance(circles[0], junctions[2], junctions[3], R);
         R_hor = calc_wire_resistance(circles[0], junctions[0], junctions[2], R);
-        cout << R_ver << " " << R_hor << endl;
         matrix_[0][0] = R_ver*R_j + R_hor*R_j + R_hor*R_ver;
         matrix_[0][1] = -R_hor*R_j;
         matrix_[0][2] = -R_hor*R_ver;
+        R_1 = R_hor;
 
         //node right down
         R_hor = calc_wire_resistance(circles[0], junctions[1], junctions[3], R);
-        cout << R_ver << " " << R_hor << endl;
         matrix_[1][0] = -R_hor*R_j;
         matrix_[1][1] = R_ver*R_j + R_hor*R_j + R_hor*R_ver;
         matrix_[1][3] = -R_hor*R_ver;
+        R_2 = R_hor;
         
         I[0] = R_ver*R_j;
         I[1] = R_ver*R_j;
@@ -256,7 +357,6 @@ class Mat {
             //node left up
             R_ver = calc_wire_resistance(circles[i], junctions[0], junctions[1], R);
             R_hor = calc_wire_resistance(circles[i], junctions[0], junctions[2], R);
-            cout << R_ver << " " << R_hor << endl;
             matrix_[i*4-2][i*4-4] = -R_ver*R_hor;
             matrix_[i*4-2][i*4-2] = R_ver*R_hor + R_j*R_hor + R_j*R_ver;
             matrix_[i*4-2][i*4-1] = -R_j*R_hor;
@@ -264,7 +364,6 @@ class Mat {
 
             //node left down
             R_hor = calc_wire_resistance(circles[i], junctions[1], junctions[3], R);
-            cout << R_ver << " " << R_hor << endl;
             matrix_[i*4-1][i*4-3] = -R_ver*R_hor;
             matrix_[i*4-1][i*4-2] = -R_j*R_hor;
             matrix_[i*4-1][i*4-1] = R_ver*R_hor + R_j*R_hor + R_j*R_ver;
@@ -272,8 +371,7 @@ class Mat {
 
             //node right up
             R_ver = calc_wire_resistance(circles[i], junctions[2], junctions[3], R);
-            R_hor = calc_wire_resistance(circles[i], junctions[0], junctions[2], R);
-            cout << R_ver << " " << R_hor << endl;
+            R_hor = calc_wire_resistance(circles[i], junctions[0], junctions[2], R); 
             matrix_[i*4][i*4-2] = -R_ver*R_j;
             matrix_[i*4][i*4] = R_ver*R_j + R_hor*R_j + R_hor*R_ver;
             matrix_[i*4][i*4+1] = -R_hor*R_j;
@@ -281,7 +379,6 @@ class Mat {
 
             //node right down
             R_hor = calc_wire_resistance(circles[i], junctions[1], junctions[3], R);
-            cout << R_ver << " " << R_hor << endl;
             matrix_[i*4+1][i*4-1] = -R_ver*R_j;
             matrix_[i*4+1][i*4] = -R_hor*R_j;
             matrix_[i*4+1][i*4+1] = R_ver*R_j + R_hor*R_j + R_hor*R_ver;
@@ -294,17 +391,18 @@ class Mat {
         //node left up
         R_ver = calc_wire_resistance(circles[circles.size()-1], junctions[0], junctions[1], R);
         R_hor = calc_wire_resistance(circles[circles.size()-1], junctions[0], junctions[2], R);
-        cout << R_ver << " " << R_hor << endl;
 
         matrix_[nr_rows_-2][nr_rows_-4] = -R_ver*R_hor;
         matrix_[nr_rows_-2][nr_rows_-2] = R_ver*R_hor + R_j*R_hor + R_j*R_ver;
         matrix_[nr_rows_-2][nr_rows_-1] = -R_j*R_hor;
         //node left down
         R_hor = calc_wire_resistance(circles[circles.size()-1], junctions[1], junctions[3], R);
-        cout << R_ver << " " << R_hor << endl;
         matrix_[nr_rows_-1][nr_rows_-3] = -R_ver*R_hor;
         matrix_[nr_rows_-1][nr_rows_-2] = -R_j*R_hor;
         matrix_[nr_rows_-1][nr_rows_-1] = R_ver*R_hor + R_j*R_hor + R_j*R_ver;
+
+        array<double, 2> resistances_array {R_1, R_2}; //for stretch
+        return resistances_array;
     }
 
     Eigen::VectorXd solve_matrix(std::valarray<double> b_){
@@ -327,94 +425,40 @@ class Mat {
         return x;
     }
 
+    void stretch(const int N, const double R, const double R_j, const int a_iterations, const double r){
+        double R_tot;
+        double R_1;
+        double R_2;
+        const double a_delta = r/((double)a_iterations+1);
+
+        valarray<valarray<double>> results(a_iterations);   //will be filled with values of R_tot for different values of a  
+        valarray<double> result(2);                         //will become the elements of results
+
+    
+        int iteration {0};
+        double delta {0.00001};   //small value to make sure the for loop conditions are handled correctly
+
+        for (double a {r+a_delta}; a < (2*r - a_delta +  delta); a += a_delta){
+            auto circles = generate_circles(N, a, r, false);
+            auto resistances_array = build_matrix(circles, r, R, R_j);
+            R_1 = resistances_array[0];    //two first resistances returned from build_matrix, used to calc R_tot
+            R_2 = resistances_array[1];    //two first resistances returned from build_matrix, used to calc R_tot
+            auto V = solve_matrix(I);
+    
+            //---CALCULATING R_tot AND COLLECTING RESULTS---
+            R_tot = 1/((1-V[0])/R_1 + (1-V[1])/R_2);     //ohm's law onto the first 2 resistors, then added to get current. Lastly, used R = 1V/I
+            result[0] = a;
+            result[1] = R_tot;
+            results[iteration] = result;
+            iteration++;
+        }
+        //---SENDING RESULTS TO .txt FILE---
+        File_Handler file_handler;
+        file_handler.write_results_to_file("results_stretch.txt",results);    
+    
+    }
 };
 
-class File_Handler {
-    public:
-    string extract_parameter_from_string(string str) {
-        //returns the part of the string after the ':' sign. Used for handle_input
-        string parameter {""};
-        int start_index = str.find(':') ;
-        for(int i {start_index+1}; i < str.size(); i++) {
-            parameter += str[i];
-        }
-        return parameter;
-    }
-
-    tuple<int, double, double, double, double, bool, bool, bool> handle_input(string input_file_name){
-        ifstream input_file(input_file_name);
-        string line;
-        int N;
-        double a;
-        double r;
-        double R;
-        double R_j;
-        bool print_G;
-        bool print_V;
-        bool wiggle;
-        int counter {0};
-        while (getline (input_file, line)) {
-            cout << line << endl;
-            if (counter == 0) {
-                N = stoi(extract_parameter_from_string(line));
-            } else if (counter == 1){
-                a = stof(extract_parameter_from_string(line));
-            } else if (counter == 2) {
-                r = stof(extract_parameter_from_string(line));
-            } else if (counter == 3) {
-                R = stof(extract_parameter_from_string(line));
-            } else if (counter == 4) {
-                R_j = stof(extract_parameter_from_string(line));
-            } else if (counter == 5) {
-                if (extract_parameter_from_string(line) == "1"){
-                    print_G = true;
-                } else {
-                    print_G = false;
-                }
-            } else if (counter == 6) {
-                if (extract_parameter_from_string(line) == "1"){
-                    print_V = true;
-                } else {
-                    print_V = false;
-                }
-            } else if (counter == 7) {
-                if (extract_parameter_from_string(line) == "1"){
-                    wiggle = true;
-                } else {
-                    wiggle = false;
-                }
-            }
-            counter++;
-        }
-        auto parameters = make_tuple(N, a, r, R, R_j, print_G, print_V, wiggle);
-        input_file.close();
-        return parameters;
-    }
-
-    void write_circles_to_file(std::valarray<std::array<double,3>> circles, std::string file_name) {
-        std::ofstream circles_file(file_name);
-        for (const auto& circle: circles) {
-            circles_file << circle.front() << " " << circle[1] << " " << circle.back() << "\n";
-        }
-        circles_file.close();
-    }
-
-    void write_results_to_file(std::string file_name, std::valarray<std::valarray<double>> results_valarray) {
-        std::ofstream results_file(file_name);
-        for (const auto& result: results_valarray) {
-            for (const auto& value: result) {
-                results_file << value;
-                if (value == result[result.size()-1]) {
-                    results_file << "\n";
-                } else {
-                    results_file << " ";
-                }
-            }
-        }
-        results_file.close();
-    }
-
-};
 
 void timing(chrono::time_point<chrono::system_clock> time1, chrono::time_point<chrono::system_clock> time2){
 	//prints time between time1 and time 2
@@ -440,7 +484,7 @@ int main(){
     double R_ver;   //'vertical' resistance
     double R_hor;   //'horizontal' resistance
 
-    auto parameters = file_handler.handle_input("1D_input.txt");
+    auto parameters = file_handler.handle_input("input.txt");
     int N = get<0>(parameters);
     double a = get<1>(parameters);
     double r = get<2>(parameters);
@@ -449,34 +493,48 @@ int main(){
     bool print_G = get<5>(parameters);
     bool print_V = get<6>(parameters);
     bool wiggle = get<7>(parameters);
-    valarray<array<double, 3>> circles = generate_circles(N, a, r, wiggle);
-    file_handler.write_circles_to_file(circles, "circles.txt");
-
+    bool stretch = get<8>(parameters);
+    int a_iterations = get<9>(parameters);
+    
+    
+    
+    
     Mat G(4*(N-1), 4*(N-1));
 
-    //---BUILDING THE MATRIX---
-    cout << "Building matrix...\n";
+    if (stretch) {
     
-    G.build_matrix(circles, r, R, R_j);
-    const auto time_build = chrono::high_resolution_clock::now();
-    cout << "Time to build matrix: \n";
-    timing(time_start, time_build);
-    if (print_G){
-        G.print();
-    }
+        G.stretch(N, R, R_j, a_iterations, r);
+    
+    } else {
 
-    //---SOLVING THE MATRIX---
-    auto V = G.solve_matrix(G.I);
-    
-    if (print_V) {
-        cout << endl << "Solutions:\n" << V << endl;
+        valarray<array<double, 3>> circles = generate_circles(N, a, r, wiggle);
+        file_handler.write_circles_to_file(circles, "circles.txt");
+
+
+        //---BUILDING THE MATRIX---
+        cout << "Building matrix...\n";
+        
+        G.build_matrix(circles, r, R, R_j);
+        const auto time_build = chrono::high_resolution_clock::now();
+        cout << "Time to build matrix: \n";
+        timing(time_start, time_build);
+        if (print_G){
+            G.print();
+        }
+
+        //---SOLVING THE MATRIX---
+        auto V = G.solve_matrix(G.I);
+        
+        if (print_V) {
+            cout << endl << "Solutions:\n" << V << endl;
+        }
+        cout << "Time to solve matrix: \n";
+        const auto time_end = chrono::high_resolution_clock::now();
+        timing(time_build, time_end);
+        cout << "END OF MAIN" << endl;
+        cout << "Total time: \n";
+        timing(time_start, time_end);
     }
-    cout << "Time to solve matrix: \n";
-    const auto time_end = chrono::high_resolution_clock::now();
-    timing(time_build, time_end);
-    cout << "END OF MAIN" << endl;
-    cout << "Total time: \n";
-    timing(time_start, time_end);
     return 0;
 }
 

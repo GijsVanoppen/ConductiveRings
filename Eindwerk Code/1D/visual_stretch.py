@@ -16,4 +16,4 @@ def draw_graph(file_name, r):
     f.close()
     plt.show()
 
-draw_graph("1D_stretch_results.txt", 0.75)
+draw_graph("results_stretch.txt", 0.75)

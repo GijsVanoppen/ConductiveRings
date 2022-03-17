@@ -1,0 +1,10 @@
+number of rings (N):3
+lattice constant (a): 1.5
+radius (r):1
+wire resistivity (R):1
+junction resistance (R_j):1
+print G:0
+print V:0
+variations circle centers (wiggle):1
+stretch:1
+a_iterations:1000
