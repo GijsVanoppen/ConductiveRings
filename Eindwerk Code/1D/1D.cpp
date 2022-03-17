@@ -313,11 +313,18 @@ class Mat {
     int nr_cows() const { return nr_cols_; }
     
     void print(){
+        double value;
         for (int i {0}; i < nr_cols_; i++) {
             for (int j {0}; j < nr_rows_; j++){
-                std::cout << matrix_[i][j] << " ";
-            }
-            std::cout << "\n";
+                value = matrix_[i][j];
+                if (value < 0) {
+                    cout.precision(4);
+                } else {
+                    cout.precision(5);
+                }
+                cout << value << "\t";
+            }   
+            cout << "\n";
         }
     }
 
