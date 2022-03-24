@@ -1,8 +1,11 @@
 #include <iostream>
+#include <valarray>
 using namespace std;
 int main(){
-    double a= 3.4683423424;
-    cout << to_string(a) <<  " "<<  to_string(a).size();
+    valarray<double> x(1);
+    valarray<valarray<double>> y;
+    y[1] = x;
+    cout << x[0];
 
 }
 

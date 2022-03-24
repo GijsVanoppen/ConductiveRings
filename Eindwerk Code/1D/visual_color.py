@@ -82,8 +82,6 @@ def calc_junctions(circles, i):
 
 
 
-
-
 def voltage_to_rgb(voltage):
     r = 1 - voltage
     b = voltage
@@ -107,7 +105,7 @@ draw_arc()
 """
 
 
-def draw_arc(circles, i, V):
+def draw_circle(circles, i, V):
     #x_1 = circles[i][0]
     #x_2 = circles[i][1]
     #y_1 = circles[i][0]
@@ -180,8 +178,8 @@ def draw_arc(circles, i, V):
 
 #draw_arc(circles, 1, [0, 0, 0.9, 0, 0.8, 0])
 
-for i in range(1, 10):
-    draw_arc(circles, i, V)
+for i in range(1,9):
+    draw_circle(circles, i, V)
 
 
 

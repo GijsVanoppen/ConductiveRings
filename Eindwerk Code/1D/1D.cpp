@@ -13,8 +13,6 @@
 
 
 
-
-
 using namespace std;
 
 
@@ -58,7 +56,6 @@ valarray<array<double, 3>> generate_circles(int N, double a, double r, bool wigg
     }
     return circles;
 }
-
 
 double calc_wire_resistance(array<double,3> circle, array<double, 2> point_1, array<double, 2> point_2, double R) {
     double r = circle.back();
@@ -279,7 +276,6 @@ class File_Handler {
 };
 
 
-
 class Mat {
     private:
     int nr_rows_;
@@ -327,6 +323,8 @@ class Mat {
             cout << "\n";
         }
     }
+
+
 
     array<double, 2> build_matrix(std::valarray<std::array<double, 3>> circles, double r, double R, double R_j){
         double R_ver;   //'vertical' resistance
@@ -429,6 +427,18 @@ class Mat {
         solver.analyzePattern(A);
         solver.factorize(A);
         x = solver.solve(b);
+        
+        //---WRITING RESULTS TO .txt FILE---
+        valarray<valarray<double>> results(x.size());
+        
+        for (int index=0; index < x.size(); index++) {
+            valarray<double> result (1);
+            result[0] = x[index];
+            results[index] = result;
+        }
+
+        File_Handler file_handler;
+        file_handler.write_results_to_file("results.txt", results);
         return x;
     }
 
@@ -441,11 +451,11 @@ class Mat {
         valarray<valarray<double>> results(a_iterations);   //will be filled with values of R_tot for different values of a  
         valarray<double> result(2);                         //will become the elements of results
 
-    
-        int iteration {0};
-        double delta {0.00001};   //small value to make sure the for loop conditions are handled correctly
 
-        for (double a {r+a_delta}; a < (2*r - a_delta +  delta); a += a_delta){
+        double a = r;
+
+        for (int iteration = 0; iteration < a_iterations; iteration++) {
+            a += a_delta;
             auto circles = generate_circles(N, a, r, false);
             auto resistances_array = build_matrix(circles, r, R, R_j);
             R_1 = resistances_array[0];    //two first resistances returned from build_matrix, used to calc R_tot
@@ -457,11 +467,10 @@ class Mat {
             result[0] = a;
             result[1] = R_tot;
             results[iteration] = result;
-            iteration++;
         }
         //---SENDING RESULTS TO .txt FILE---
         File_Handler file_handler;
-        file_handler.write_results_to_file("results_stretch.txt",results);    
+        file_handler.write_results_to_file("results_stretch.txt", results);    
     
     }
 };
@@ -530,6 +539,7 @@ int main(){
         }
 
         //---SOLVING THE MATRIX---
+        cout << "test"<< endl;
         auto V = G.solve_matrix(G.I);
         
         if (print_V) {
