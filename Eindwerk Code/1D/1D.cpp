@@ -438,7 +438,7 @@ class Mat {
         }
 
         File_Handler file_handler;
-        file_handler.write_results_to_file("results.txt", results);
+        file_handler.write_results_to_file("V.txt", results);
         return x;
     }
 
@@ -539,7 +539,6 @@ int main(){
         }
 
         //---SOLVING THE MATRIX---
-        cout << "test"<< endl;
         auto V = G.solve_matrix(G.I);
         
         if (print_V) {
