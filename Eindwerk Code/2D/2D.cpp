@@ -41,19 +41,21 @@ class Ring{
     double get_R() {return R_;}
     int get_ring_index() {return ring_index_;}
 
-    double distance_between_rings(Ring ring1, Ring ring2) {
-        return sqrt(pow(ring1.get_x() - ring2.get_x(),2) + pow(ring1.get_y() - ring2.get_y(),2));
+    double distance_between_rings(Ring ring2) {
+        return sqrt(pow(get_x() - ring2.get_x(),2) + pow(get_y() - ring2.get_y(),2));
     }
 
-    bool check_overlap(Ring ring1, Ring ring2) {
-        //check if the two Ring objects are not the same
-        if (ring1.get_x() == ring2.get_x() && ring1.get_y() == ring2.get_y() && ring1.get_r() == ring2.get_r() && ring1.get_R() == ring2.get_R()) {
+    bool check_overlap(Ring ring2) {
+
+        //first, check if the two Ring objects are not the same
+        if (get_ring_index() == ring2.get_ring_index()) {
             return false;
         }
 
-        if (distance_between_rings(ring1, ring2) < (ring1.get_r() + ring2.get_r())) {
+        if (distance_between_rings(ring2) < (get_r() + ring2.get_r())) {
             return true;
         }
+
         else {
             return false;
         }
@@ -62,18 +64,31 @@ class Ring{
 
     int cluster_index = -1;
 
-    int calc_cluster_index(vector<vector<int>> clusters) {   //returns index of clusters in which vector the ring index is located. Returns -1 if this ring is not in a cluster
+    int update_cluster_index(vector<vector<int>> clusters) {   //returns index of clusters in which vector the ring index is located. Returns -1 if this ring is not in a cluster
         for (int cluster_index_ = 0; cluster_index_ < clusters.size(); cluster_index_++) {
             for (const auto& value: clusters[cluster_index_]) {
                 if (value == get_ring_index()) {
                     return cluster_index_;
-                    cout << "this ring is already in cluster\n ";
                 }
             }
         }
         return -1;
     }
+/*
+    vector<valarray<double>> calc_junctions(vector<Ring> rings) {
+        for (auto& ring: rings) {
+            double d = distance_between_rings(ring);
+            double alpha = asin((ring.get_y() - get_y())/d);
+            double M_x = get_x() + cos(alpha)*d*0.5; 
+            double M_y = get_y() + sin(alpha)*d*0.5;
 
+            double junction_1_x = M_x - sin(alpha)*sqrt(pow(get_r(),2) - 0.25*pow(d,2));
+            double junction_1_y = M_y + cos(alpha)*sqrt(pow(get_r(),2) - 0.25*pow(d,2));
+            double junction_2_x = M_x + sin(alpha)*sqrt(pow(get_r(),2) - 0.25*pow(d,2));
+            double junction_2_y = M_y - cos(alpha)*sqrt(pow(get_r(),2) - 0.25*pow(d,2));
+            
+        }
+    }*/
 };
 
 vector<Ring> generate_rings(const int N, const double box_width, const double box_length, const double r_min, const double r_max, const double R){
@@ -109,7 +124,7 @@ void write_rings_to_file(vector<Ring> rings, std::string file_name) {
 
 
 int main() {
-    int N = 1000;
+    int N = 5;
     vector<Ring> rings = generate_rings(N, 10, 10, 1, 2, 1); 
     write_rings_to_file(rings, "rings.txt");
 
@@ -118,29 +133,71 @@ int main() {
     vector<vector<int>> clusters;
     
     for (int ring_index=0; ring_index<N; ring_index++) {
-        auto ring = rings[ring_index];  //this is the ring that is currently focussed
-        ring.cluster_index = ring.calc_cluster_index(clusters);
+        
+        auto& ring = rings[ring_index];  //this is the ring that is currently focussed
+        vector<int> rings_to_check; //will be filled with indices of rings that still need to be checked for overlapping rings
+        cout << "Current ring: " << ring_index <<" " << ring.get_x() << " " << ring.get_y() << endl;
+        bool done;
 
         vector<int> cluster;
-        if (ring.cluster_index == -1){ //ring is not yet in a cluster, so we add a new, empty cluster to clusters
+
+        if (ring.cluster_index == -1){    //ring is not yet in a cluster, so we add a new, empty cluster to clusters
+            cout << "This ring is not yet in a cluster\n";
             cluster.push_back(ring_index);  //add the index of this ring to the new cluster
             clusters.push_back(cluster);    // add the new cluster to clusters
-            ring.cluster_index = clusters.size()-1;     // update the new cluster_index for the ring
+            ring.cluster_index = clusters.size()-1;    // update the new cluster_index for the ring
+            rings_to_check.push_back(ring.cluster_index);
+            done = false;
         } else {
-            cluster = clusters[ring.cluster_index];     //ring is already in a cluster, so we want to expand that cluster with connecting rings
+            cout << "This ring is already in a cluster\n";
+            done = true;
         }
         
-        for (int ring_index2 = 0; ring_index2 < N; ring_index2++){  //look if the ring has overlap with other rings
-            if (ring.check_overlap(ring, rings[ring_index2])){      //found a connecting ring
-                if (find(cluster.begin(), cluster.end(), ring_index2) == cluster.end()) {   //the connected ring is not yet in the cluster
-                    clusters[ring.cluster_index].push_back(ring_index2);     //add the ring_index to the cluster    
-                }
-            } 
-    
+        while (not done) {
+            cout << "In while loop. Current ring to check: " << rings_to_check.back() << endl;
+            auto& ring = rings[rings_to_check.back()];   //we now look for rings that overlap with the last ring in the list
+            rings_to_check.pop_back();  
+            ring.cluster_index = clusters.size()-1;
+
+            for (int ring_index2 = 0; ring_index2 < N; ring_index2++){  //look if the ring has overlap with other rings
+                if (ring.check_overlap(rings[ring_index2])){      //found a connecting ring
+                    cout << "Connection found with ring " << ring_index2 <<" " <<rings[ring_index2].get_x()<< " " <<rings[ring_index2].get_y()<<endl;
+                    if (rings[ring_index2].cluster_index == -1) {   //the connected ring is not yet in a cluster
+                        cout << "not yet in cluster\n";
+                        rings[ring_index2].cluster_index = clusters.size()-1;
+                        cout << "now is part of cluster " << rings[ring_index2].cluster_index << endl;
+                        cout << ring.cluster_index << endl;
+                        clusters[ring.cluster_index].push_back(ring_index2);     //add the ring_index to the cluster   
+                        cout << "test\n";
+                        rings_to_check.push_back(ring_index2);          //add the ring to rings_to_check
+                    } else {
+                        cout << "was already in cluster\n" ;
+                    }
+                } 
+        
+            }
+            cout << "current size rings_to_check: " << rings_to_check.size() << "\n";
+            if (rings_to_check.size() == 0) {   //the whole cluster has been searched through
+                done = true;
+            }
+        }
+        for (auto cluster: clusters) {
+            for (auto index: cluster) {
+                cout << index << " ";
+            }
+            cout << endl;
         }
     }
 
 
 
+
+
+
+
+
+    cout << clusters.size() << "\n";
+
+    cout << "end of main";
 
 }

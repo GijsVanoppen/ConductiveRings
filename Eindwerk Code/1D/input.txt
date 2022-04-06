@@ -1,10 +1,10 @@
-number of rings (N):200
+number of rings (N):10
 lattice constant (a): 1
 radius (r):0.75
-wire resistivity (R):1
+wire resistivity (R):10000
 junction resistance (R_j):1
 print G:0
 print V:0
 variations circle centers (wiggle):1
-stretch:0
+stretch:1
 a_iterations:50

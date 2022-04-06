@@ -1,1 +1,1 @@
-Amount of rings (N):3
+Amount of rings (N):5
