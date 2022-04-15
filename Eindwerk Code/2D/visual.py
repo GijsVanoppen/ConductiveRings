@@ -8,7 +8,8 @@ def nth_index(iterable, value, n):
 
 def draw_circles(file_name, r):
     f = open(file_name, "r")
-    for line in f:      
+    ring_index = 0
+    for line in f:
         space_index = nth_index(line, ' ', 1)
         space_index2 = nth_index(line, ' ', 2)
         space_index3 = nth_index(line, ' ', 3)
@@ -17,8 +18,10 @@ def draw_circles(file_name, r):
         r = float(line[space_index2+1:space_index3])
         R = float(line[space_index3+1:-1])
         c = plt.Circle((circle_x, circle_y), radius = r, fill= False)
+        plt.text(circle_x,circle_y, str(ring_index)) 
         #print(circle_x, circle_y, r)
         plt.gca().add_artist(c)
+        ring_index = ring_index + 1      
     plt.axis([0, 10, 0, 10])
     plt.gca().set_aspect("equal", adjustable = "box")
     f.close()
