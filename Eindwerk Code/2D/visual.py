@@ -5,7 +5,6 @@ def nth_index(iterable, value, n):
     matches = (idx for idx, val in enumerate(iterable) if val == value)
     return next(islice(matches, n-1, n), None)
 
-
 def draw_circles(file_name, r):
     f = open(file_name, "r")
     ring_index = 0
