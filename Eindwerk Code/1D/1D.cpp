@@ -59,7 +59,7 @@ valarray<array<double, 3>> generate_circles(int N, double a, double r, bool wigg
 
 double calc_wire_resistance(array<double,3> circle, array<double, 2> point_1, array<double, 2> point_2, double R) {
     double r = circle.back();
-    return (R*acos(1 - 0.5*pow(dist(point_1, point_2)/r,2)));
+    return (r*R*acos(1 - 0.5*pow(dist(point_1, point_2)/r,2)));
 }
 
 array<array<double, 2>, 4> calc_junctions(int i, valarray<array<double, 3>> circles, double r) {
@@ -421,7 +421,7 @@ class Mat {
         } 
         for (int i {0}; i < b_.size(); i++) {
             b(i) = b_[i];
-        }
+        }      
         A.makeCompressed();
         Eigen::SparseLU<Eigen::SparseMatrix<double>> solver;   
         solver.analyzePattern(A);
