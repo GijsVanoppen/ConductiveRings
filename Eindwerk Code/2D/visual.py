@@ -18,12 +18,11 @@ def draw_circles(file_name, r):
         R = float(line[space_index3+1:-1])
         c = plt.Circle((circle_x, circle_y), radius = r, fill= False)
         plt.text(circle_x,circle_y, str(ring_index)) 
-        #print(circle_x, circle_y, r)
         plt.gca().add_artist(c)
         ring_index = ring_index + 1      
-    plt.axis([0, 10, 0, 10])
+    plt.axis([0, circle_x + r, 0, circle_x + r])
     plt.gca().set_aspect("equal", adjustable = "box")
     f.close()
     plt.show()
 
-draw_circles("rings.txt", 0.75)
+draw_circles("rings_main.txt", 0.75)
