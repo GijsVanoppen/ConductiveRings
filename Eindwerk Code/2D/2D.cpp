@@ -134,7 +134,7 @@ class Ring{
                 junctions.push_back(junction_info);
             }
         }
-
+        
     }
 
     double calc_resistance(double angle1, double angle2) {  //calculates resistance of wire from angle1 to angle2 (counter clockwise)
@@ -146,12 +146,16 @@ class Ring{
     }
 
     int calc_junction_index_before_crit_angle(double crit_angle) {
-        for (int junction_index = 0; junction_index < junctions.size(); junction_index++) {
-            if (get<2>(junctions[junction_index]) > crit_angle) {
-                return junction_index-1;
-            } 
+        if (junctions.size() == 1) {
+            return 0;
+        } else {
+            for (int junction_index = 0; junction_index < junctions.size(); junction_index++) {
+                if (get<2>(junctions[junction_index]) > crit_angle) {
+                    return junction_index-1;
+                } 
+            }
+            return junctions.size()-1;     
         }
-        return junctions.size()-1;     
     }
 
     array<double, 2> calc_angle_of_intersection_with_bound(double x_bound) {
@@ -164,7 +168,19 @@ class Ring{
     }
 
     int return_junction_index_from_other_ring(vector<Ring> rings, tuple<double, double, double, int> junction) {
-        Ring ring2 = rings[get<3>(junction)]; //get neighbouring ring
+        //first, get the neighbouring ring
+        int wanted_ring_index = get<3>(junction);
+        
+        int index = 0;
+        for (auto& ring: rings) {
+            if (ring.get_ring_index() == wanted_ring_index) {
+                break;
+            }
+            index++;
+        }
+        Ring ring2 = rings[index];
+
+
         for (int junction_index2 = 0; junction_index2 < ring2.junctions.size(); junction_index2++) {   //loop over its junctions
             auto junction2 = ring2.junctions[junction_index2];
             if ((get<0>(junction2) == get<0>(junction)) && (get<1>(junction2) == get<1>(junction))) {   //x and y are the same, we found the correct junction
@@ -176,28 +192,6 @@ class Ring{
     }
 
 };
-
-vector<Ring> generate_rings(const int N, const double box_width, const double box_length, const double r_min, const double r_max, const double R){
-    //rng
-    using seed_dist_t = std::uniform_int_distribution<size_t>;
-    seed_dist_t seed_distr(0, std::numeric_limits<size_t>::max());
-    random_device dev;
-    auto seed = seed_distr(dev);
-    mt19937_64 engine(seed);
-    auto distr = bind(std::uniform_real_distribution<double>(0.0, 1.0),engine);
-    
-    vector<Ring> rings;         //create vector, will be filled with Ring objects
-    for (int i=0; i < N; i++) {
-        //choose variables
-        double r = r_min + distr()*(r_max-r_min);   //r between [r_min, r_max]
-        double x = -r + distr()*(box_width+2*r);      //x between [-r, box_witdh+r]
-        double y = r + distr()*(box_length-2*r);      //y between [r, box_length-r]
-        Ring ring(x, y, r, R, i);          //create Ring object
-        rings.push_back(ring);          //filling of vector
-    }   
-    return rings;
-
-}
 
 bool sort_junctions(tuple<double,double,double,int> junction_info1, tuple<double,double,double,int> junction_info2){ //used to sort junctions by angle
     return (get<2>(junction_info1) < get<2>(junction_info2));
@@ -228,62 +222,68 @@ class File_Handler {
         return parameter;
     }
 
-    tuple<int, double, double, double, double, bool, bool, bool, bool, int> handle_input(string input_file_name){
+    auto handle_input(string input_file_name){
         ifstream input_file(input_file_name);
         string line;
         int N;
-        double a;
-        double r;
-        double R;
+        double box_width;
+        double box_length;
+        double V_diff;
+        double r_min;
+        double r_max;
+        double R_min;
+        double R_max;
         double R_j;
         bool print_G;
         bool print_V;
-        bool wiggle;
-        bool stretch;
-        int a_iterations;
+        bool import_rings;
+        string rings_file_name;
+
         int counter {0};
         while (getline (input_file, line)) {
             cout << line << endl;
             if (counter == 0) {
                 N = stoi(extract_parameter_from_string(line));
             } else if (counter == 1){
-                a = stof(extract_parameter_from_string(line));
+                box_width = stof(extract_parameter_from_string(line));
             } else if (counter == 2) {
-                r = stof(extract_parameter_from_string(line));
+                box_length = stof(extract_parameter_from_string(line));
             } else if (counter == 3) {
-                R = stof(extract_parameter_from_string(line));
+                V_diff = stof(extract_parameter_from_string(line));
             } else if (counter == 4) {
-                R_j = stof(extract_parameter_from_string(line));
+                r_min = stof(extract_parameter_from_string(line));
             } else if (counter == 5) {
+                r_max = stof(extract_parameter_from_string(line));
+            } else if (counter == 6) {
+                R_min = stof(extract_parameter_from_string(line));
+            } else if (counter == 7) {
+                R_max = stof(extract_parameter_from_string(line));
+            } else if (counter == 8) {
+                R_j = stof(extract_parameter_from_string(line));
+            } else if (counter == 9) {
                 if (extract_parameter_from_string(line) == "1"){
                     print_G = true;
                 } else {
                     print_G = false;
                 }
-            } else if (counter == 6) {
+            } else if (counter == 10) {
                 if (extract_parameter_from_string(line) == "1"){
                     print_V = true;
                 } else {
                     print_V = false;
                 }
-            } else if (counter == 7) {
+            } else if (counter == 11) {
                 if (extract_parameter_from_string(line) == "1"){
-                    wiggle = true;
+                    import_rings = true;
                 } else {
-                    wiggle = false;
+                    import_rings = false;
                 }
-            } else if (counter == 8) {
-                if (extract_parameter_from_string(line) == "1"){
-                    stretch = true;
-                } else {
-                    stretch = false;
-                }
-            } else if (counter == 9){
-                a_iterations = stoi(extract_parameter_from_string(line));
+            } else if (counter == 12) {
+                rings_file_name = extract_parameter_from_string(line);
             }
             counter++;
         }
-        auto parameters = make_tuple(N, a, r, R, R_j, print_G, print_V, wiggle, stretch, a_iterations);
+        auto parameters = make_tuple(N, box_width, box_length, V_diff, r_min, r_max, R_min, R_max, R_j, print_G, print_V, import_rings, rings_file_name);
         input_file.close();
         return parameters;
     }
@@ -354,7 +354,36 @@ class File_Handler {
         }
         return rings;
     }
+
+    void write_plot_pars_to_file(const string file_name, const double box_width, const double box_length) {
+        ofstream pars_file(file_name);
+        pars_file << box_width << endl << box_length;
+        pars_file.close();
+    }
 };
+
+vector<Ring> generate_rings(const int N, const double box_width, const double box_length, const double r_min, const double r_max, const double R_min, const double R_max){
+    //random number generator
+    using seed_dist_t = std::uniform_int_distribution<size_t>;
+    seed_dist_t seed_distr(0, std::numeric_limits<size_t>::max());
+    random_device dev;
+    auto seed = seed_distr(dev);
+    mt19937_64 engine(seed);
+    auto distr = bind(std::uniform_real_distribution<double>(0.0, 1.0),engine);
+    
+    vector<Ring> rings;         //create vector, will be filled with Ring objects
+    for (int i=0; i < N; i++) {
+        //choose variables
+        double r = r_min + distr()*(r_max-r_min);   //r between [r_min, r_max]
+        double x = -r + distr()*(box_width+2*r);      //x between [-r, box_witdh+r]
+        double y = r + distr()*(box_length-2*r);      //y between [r, box_length-r]
+        double R = R_min + distr()*(R_max-R_min);
+        Ring ring(x, y, r, R, i);          //create Ring object
+        rings.push_back(ring);          //filling of vector
+    }  
+    return rings;
+}
+
 
 class Mat {
     private:
@@ -406,7 +435,7 @@ class Mat {
         }
     }
 
-    void build_matrix(vector<Ring> rings, double R_j, double V_left, double box_width){
+    void build_matrix(vector<Ring> rings, double R_j, double V_diff, double box_width){
         cout << "Building matrix...\n";
         double R_p;
         double R_n;
@@ -417,12 +446,13 @@ class Mat {
 
             for (int junction_index = 0; junction_index < ring.junctions.size(); junction_index++) {    //loop over all junctions of the ring
                 if ((ring.get_x() <= ring.get_r()) &&  (junction_index == ring.calc_junction_index_before_crit_angle(M_PI))) {                                             //hits left boundary with first junction 
-                    cout << "Case 1" << endl;
+                    // cout << "Case1\n";
+
                     R_n = ring.calc_resistance(get<2>(ring.junctions[junction_index]), ring.calc_angle_of_intersection_with_bound(0)[0]);
                     if (junction_index == 0) {
                         if (ring.junctions.size() == 1) {   //only one junction at ring
                             R_p = ring.calc_resistance(ring.calc_angle_of_intersection_with_bound(0)[1], get<2>(ring.junctions[junction_index])); 
-                            I[node_counter] += R_n*R_j*V_left ;
+                            I[node_counter] += R_n*R_j*V_diff ;
                         } else {
                             R_p = ring.calc_resistance(get<2>(ring.junctions.back()), get<2>(ring.junctions[junction_index]));   
                             set_element(node_counter, node_counter+ring.junctions.size()-1, -R_j*R_n);                                                                        //previous element
@@ -434,10 +464,11 @@ class Mat {
                     
                     set_element(node_counter, node_counter, R_n*R_p + R_p*R_j + R_j*R_n);                                                       //diagonal element
                     set_element(node_counter, node_nr_at_junction(rings, get<3>(ring.junctions[junction_index]), ring.return_junction_index_from_other_ring(rings, ring.junctions[junction_index])), -R_n*R_p);      //element corresponding to junction
-                    I[node_counter] += R_p*R_j*V_left;
+                    I[node_counter] += R_p*R_j*V_diff;
 
                 } else if ((ring.get_x() <= ring.get_r())  && (junction_index == ((ring.calc_junction_index_before_crit_angle(M_PI)+1) % ring.junctions.size()))) {        //hits left boundary with second junction 
-                    cout << "Case 2" << endl;
+                    // cout << "Case2\n";
+
                     //side note: here we dont have to make seperate cases for when there is only one junction present, as the previous if-statement would handle this case
                     R_p = ring.calc_resistance(ring.calc_angle_of_intersection_with_bound(0)[1], get<2>(ring.junctions[junction_index]));
                     R_n = ring.calc_resistance(get<2>(ring.junctions[junction_index]), get<2>(ring.junctions[(junction_index+1) % ring.junctions.size()]));     
@@ -452,11 +483,12 @@ class Mat {
                
                     set_element(node_counter, node_counter, R_n*R_p + R_p*R_j + R_j*R_n);                                                       //diagonal element
                     set_element(node_counter, node_nr_at_junction(rings, get<3>(ring.junctions[junction_index]), ring.return_junction_index_from_other_ring(rings, ring.junctions[junction_index])), -R_n*R_p);      //element corresponding to junction
-                    I[node_counter] = R_n*R_j*V_left;
+                    I[node_counter] = R_n*R_j*V_diff;
                     
 
                 } else if ((abs(box_width - ring.get_x()) < ring.get_r()) && (junction_index == 0)) {                               //hits right boundary with first junction
-                    cout << "Case 3" << endl;
+                    // cout << "Case3\n";
+
                     R_p = ring.calc_resistance(ring.calc_angle_of_intersection_with_bound(box_width)[0], get<2>(ring.junctions[junction_index]));
                     if (ring.junctions.size() == 1) {
                         R_n = ring.calc_resistance(get<2>(ring.junctions[junction_index]), ring.calc_angle_of_intersection_with_bound(box_width)[1]); 
@@ -468,6 +500,8 @@ class Mat {
                     set_element(node_counter, node_nr_at_junction(rings, get<3>(ring.junctions[junction_index]), ring.return_junction_index_from_other_ring(rings, ring.junctions[junction_index])), -R_n*R_p);      //element corresponding to junction
 
                 } else if ((abs(box_width - ring.get_x()) < ring.get_r()) && (junction_index == (ring.junctions.size()-1))) {       //hits right boundary with second junction
+                    // cout << "Case4\n";
+
                     //side note: here we dont have to make seperate cases for when there is only one junction present, as the previous else if-statement would handle this case
                     R_p = ring.calc_resistance(get<2>(ring.junctions[junction_index-1]), get<2>(ring.junctions[junction_index]));   
                     R_n = ring.calc_resistance(get<2>(ring.junctions[junction_index]), ring.calc_angle_of_intersection_with_bound(box_width)[1]);
@@ -478,7 +512,7 @@ class Mat {
                 
                 
                 } else {
-                    cout << "Case 5\n";
+                    // cout << "Case5\n";
                     if (junction_index == 0) { //first junction
                         R_p = ring.calc_resistance(get<2>(ring.junctions.back()), get<2>(ring.junctions[junction_index]));  
                         R_n = ring.calc_resistance(get<2>(ring.junctions[junction_index]), get<2>(ring.junctions[junction_index+1]));
@@ -501,14 +535,14 @@ class Mat {
                     set_element(node_counter, node_counter, R_n*R_p + R_p*R_j + R_j*R_n);                                                       //diagonal element
                     set_element(node_counter, node_nr_at_junction(rings, get<3>(ring.junctions[junction_index]), ring.return_junction_index_from_other_ring(rings, ring.junctions[junction_index])), -R_n*R_p);      //element corresponding to junction
                 }
+                // cout << R_p << " " << R_n << " " << R_j << " " <<  R_n*R_p + R_p*R_j + R_j*R_n <<endl;
                 node_counter++;
-                cout << "Matrix after " << node_counter << " nodes:\n";
-                print();
             }
         }
     }
    
     Eigen::VectorXd solve_matrix(valarray<double> b_){
+        cout << "Solving matrix...\n";
         Eigen::SparseMatrix<double> A(nr_rows_, nr_cols_);
         Eigen::VectorXd x (nr_cols_);
         Eigen::VectorXd b (nr_cols_);
@@ -534,27 +568,39 @@ class Mat {
 
 
 int main() {
-    cout << "\n\n\nSTART OF MAIN \n"; 
-    const double V_left = 1;
-    const int N = 3;
-    const double box_width = 2;
-    const double box_length = 10;
-    const double R_j = 1;
-    const bool print_V = true;
-
+    cout << "START OF MAIN \n"; 
+    //---INITIALISATION---
     File_Handler file_handler;
+    cout << "Input parameters:\n";
+    auto input_pars = file_handler.handle_input("input.txt");
+
+    const int N = get<0>(input_pars);
+    const double box_width = get<1>(input_pars);
+    const double box_length = get<2>(input_pars);
+    const double V_diff = get<3>(input_pars);
+    const double r_min = get<4>(input_pars);
+    const double r_max = get<5>(input_pars);
+    const double R_min = get<6>(input_pars);
+    const double R_max = get<7>(input_pars);
+    const double R_j = get<8>(input_pars);
+    const bool print_G = get<9>(input_pars);
+    const bool print_V = get<10>(input_pars);
+    const bool import_rings = get<11>(input_pars);
+    const string rings_file_name = get<12>(input_pars);
+
+    cout << endl << endl;
 
 
     //---GENERATE RINGS---
-    vector<Ring> rings = generate_rings(N, box_width, box_length, 1, 1.1, 1);
-    rings = file_handler.read_rings_from_file("rings_SIMPLE.txt"); 
-    file_handler.write_rings_to_file(rings, "rings_all.txt");
-
-    cout << "Rings:\n";
-    for (auto ring: rings) {
-        cout <<  ring.get_ring_index() << " " << ring.get_x() << " " << ring.get_y() << " " << ring.get_r() << endl;
+    vector<Ring> rings;
+    if (import_rings) {
+        rings = file_handler.read_rings_from_file(rings_file_name);
+    } else {
+        rings = generate_rings(N, box_width, box_length, r_min, r_max, R_min, R_max);
     }
-
+    //write rings and plot parameters to .txt-files 
+    file_handler.write_rings_to_file(rings, "rings_all.txt");
+    file_handler.write_plot_pars_to_file("plot_pars.txt", box_width, box_length);
 
     //---FIND CLUSTERS---
     vector<vector<Ring>> clusters;
@@ -630,7 +676,8 @@ int main() {
         return 1;
     }
     clusters = clusters_;
-
+    
+    
 
 
     //---GIVE RINGS NEW INDICES AND FILTER RINGS---
@@ -642,11 +689,12 @@ int main() {
             index++;  
         } 
     }
-    
+
+
+
     //---MAKE SURE THE FIRST AND THE LAST RING ARE AT THE BOUNDARY---
     bool first_ring_found = false;
-    bool last_ring_found = false;
-    
+    bool last_ring_found = false; 
     for (auto ring: rings) {
         if (not first_ring_found) {
             if (abs(ring.get_x()) <= ring.get_r()) {
@@ -667,8 +715,10 @@ int main() {
         }
     }
 
-    file_handler.write_rings_to_file(rings, "rings_main.txt");
 
+    
+    file_handler.write_rings_to_file(rings, "rings_main.txt");
+   
     //---CALCULATE JUNCTIONS---
     int amount_of_nodes = 0;
     for (auto& ring: rings) {
@@ -676,34 +726,33 @@ int main() {
         //now sorting the junction based on increasing angle
         sort(ring.junctions.begin(), ring.junctions.end(), sort_junctions);
         amount_of_nodes += ring.junctions.size();
-        for (auto& junction: ring.junctions) {
-            // cout << get<2>(junction) << " ("<<get<0>(junction) << ", "<< get<1>(junction) << ")"<< endl;
-        }
-
     }    
 
-    cout << "Printing junctions:\n"; 
-    for (auto ring: rings) {
-        cout << "Junctions of ring " <<ring.get_ring_index() << endl;
-        for (auto junction: ring.junctions) {
-            cout << get<0>(junction) << " " << get<1>(junction) << " " << get<2>(junction) <<" " << get<3>(junction) << endl; 
-        }
-        cout << endl;
-    }
+    // cout << "Printing junctions:\n"; 
+    // for (auto ring: rings) {
+    //     cout << "Junctions of ring " <<ring.get_ring_index() << endl;
+    //     for (auto junction: ring.junctions) {
+    //         cout << get<0>(junction) << " " << get<1>(junction) << " " << get<2>(junction) <<" " << get<3>(junction) << endl; 
+    //     }
+    //     cout << endl;
+    // }
 
 
     //---BUILDING MATRIX---
     cout << "matrix size: " << amount_of_nodes << endl;
     Mat G(amount_of_nodes,amount_of_nodes);
-    G.build_matrix(rings, R_j, V_left, box_width);
-    G.print();
+
+    G.build_matrix(rings, R_j, V_diff, box_width);
+
+    if (print_G) {
+        G.print();
+    }
 
 
     
     //---SOLVING THE MATRIX---
-    cout << "Solving matrix...\n";
     auto V = G.solve_matrix(G.I);
-    
+
     if (print_V) {
         cout << endl << "Solutions:\n" << V << endl;
     }
