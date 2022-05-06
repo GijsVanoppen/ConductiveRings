@@ -1,6 +1,6 @@
-Amount of rings (N):10
-box_width:3
-box_length:3
+Amount of rings (N):100
+box_width:10
+box_length:10
 Voltage difference (V_diff):1
 Minimum ring radius (r_min):0.75
 Maximum ring radius (r_max):1

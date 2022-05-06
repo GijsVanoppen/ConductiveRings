@@ -203,7 +203,7 @@ bool sort_rings(Ring ring1, Ring ring2){ //used to sort rings by x_value of cent
 
 int node_nr_at_junction(vector<Ring> rings, int ring_index, int junction_index){
     int node_nr = 0;
-    for (int ring_index2 = 0; ring_index2 < ring_index; ring_index2++){
+    for (int ring_index2 = 0; rings[ring_index2].get_ring_index() != ring_index; ring_index2++){
         Ring ring = rings[ring_index2];
         node_nr += ring.junctions.size();
     }
@@ -291,7 +291,7 @@ class File_Handler {
     void write_rings_to_file(vector<Ring> rings, string file_name) {
         ofstream rings_file(file_name);
         for (auto& ring: rings) {
-            rings_file << ring.get_x() << " " << ring.get_y() << " " << ring.get_r() << " " << ring.get_R() << "\n";
+            rings_file << ring.get_ring_index() << " "  <<ring.get_x() << " " << ring.get_y() << " " << ring.get_r() << " " << ring.get_R() << "\n";
         }
         rings_file.close();
     }
@@ -443,8 +443,9 @@ class Mat {
         for (int index = 0; index < rings.size(); index++) {    //loop over all rings
         
             auto& ring = rings[index];
-
+            // cout << "ring " << ring.get_ring_index() << endl;
             for (int junction_index = 0; junction_index < ring.junctions.size(); junction_index++) {    //loop over all junctions of the ring
+                
                 if ((ring.get_x() <= ring.get_r()) &&  (junction_index == ring.calc_junction_index_before_crit_angle(M_PI))) {                                             //hits left boundary with first junction 
                     // cout << "Case1\n";
 
@@ -513,6 +514,7 @@ class Mat {
                 
                 } else {
                     // cout << "Case5\n";
+
                     if (junction_index == 0) { //first junction
                         R_p = ring.calc_resistance(get<2>(ring.junctions.back()), get<2>(ring.junctions[junction_index]));  
                         R_n = ring.calc_resistance(get<2>(ring.junctions[junction_index]), get<2>(ring.junctions[junction_index+1]));
@@ -532,10 +534,11 @@ class Mat {
                         set_element(node_counter, node_counter-1, -R_j*R_n);                                                                        //previous element
                         set_element(node_counter, node_counter+1, -R_p*R_j);                                                                        //next element
                     }
+                    // cout << R_p << " " << R_n << " " << R_j << " " <<  R_n*R_p + R_p*R_j + R_j*R_n <<endl;
+
                     set_element(node_counter, node_counter, R_n*R_p + R_p*R_j + R_j*R_n);                                                       //diagonal element
                     set_element(node_counter, node_nr_at_junction(rings, get<3>(ring.junctions[junction_index]), ring.return_junction_index_from_other_ring(rings, ring.junctions[junction_index])), -R_n*R_p);      //element corresponding to junction
                 }
-                // cout << R_p << " " << R_n << " " << R_j << " " <<  R_n*R_p + R_p*R_j + R_j*R_n <<endl;
                 node_counter++;
             }
         }
