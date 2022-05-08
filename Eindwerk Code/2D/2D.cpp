@@ -10,7 +10,9 @@
 #include <chrono>
 #include <vector>
 
+
 using namespace std;
+
 
 
 class Ring{
@@ -226,8 +228,12 @@ class File_Handler {
         ifstream input_file(input_file_name);
         string line;
         int N;
-        double box_width;
-        double box_length;
+        double box_width_min;
+        double box_width_max;
+        double box_width_iterations;
+        double box_length_min;
+        double box_length_max;
+        double box_length_iterations;
         double V_diff;
         double r_min;
         double r_max;
@@ -245,45 +251,53 @@ class File_Handler {
             if (counter == 0) {
                 N = stoi(extract_parameter_from_string(line));
             } else if (counter == 1){
-                box_width = stof(extract_parameter_from_string(line));
-            } else if (counter == 2) {
-                box_length = stof(extract_parameter_from_string(line));
-            } else if (counter == 3) {
-                V_diff = stof(extract_parameter_from_string(line));
+                box_width_min = stof(extract_parameter_from_string(line));
+            } else if (counter == 2){
+                box_width_max = stof(extract_parameter_from_string(line));
+            } else if (counter == 3){
+                box_width_iterations = stof(extract_parameter_from_string(line));
             } else if (counter == 4) {
-                r_min = stof(extract_parameter_from_string(line));
+                box_length_min = stof(extract_parameter_from_string(line));
             } else if (counter == 5) {
-                r_max = stof(extract_parameter_from_string(line));
+                box_length_max = stof(extract_parameter_from_string(line));
             } else if (counter == 6) {
-                R_min = stof(extract_parameter_from_string(line));
+                box_length_iterations = stof(extract_parameter_from_string(line));
             } else if (counter == 7) {
-                R_max = stof(extract_parameter_from_string(line));
+                V_diff = stof(extract_parameter_from_string(line));
             } else if (counter == 8) {
-                R_j = stof(extract_parameter_from_string(line));
+                r_min = stof(extract_parameter_from_string(line));
             } else if (counter == 9) {
+                r_max = stof(extract_parameter_from_string(line));
+            } else if (counter == 10) {
+                R_min = stof(extract_parameter_from_string(line));
+            } else if (counter == 11) {
+                R_max = stof(extract_parameter_from_string(line));
+            } else if (counter == 12) {
+                R_j = stof(extract_parameter_from_string(line));
+            } else if (counter == 13) {
                 if (extract_parameter_from_string(line) == "1"){
                     print_G = true;
                 } else {
                     print_G = false;
                 }
-            } else if (counter == 10) {
+            } else if (counter == 14) {
                 if (extract_parameter_from_string(line) == "1"){
                     print_V = true;
                 } else {
                     print_V = false;
                 }
-            } else if (counter == 11) {
+            } else if (counter == 15) {
                 if (extract_parameter_from_string(line) == "1"){
                     import_rings = true;
                 } else {
                     import_rings = false;
                 }
-            } else if (counter == 12) {
+            } else if (counter == 16) {
                 rings_file_name = extract_parameter_from_string(line);
             }
             counter++;
         }
-        auto parameters = make_tuple(N, box_width, box_length, V_diff, r_min, r_max, R_min, R_max, R_j, print_G, print_V, import_rings, rings_file_name);
+        auto parameters = make_tuple(N, box_width_min, box_width_max, box_width_iterations, box_length_min, box_length_max, box_length_iterations, V_diff, r_min, r_max, R_min, R_max, R_j, print_G, print_V, import_rings, rings_file_name);
         input_file.close();
         return parameters;
     }
@@ -296,17 +310,20 @@ class File_Handler {
         rings_file.close();
     }
 
-    void write_results_to_file(string file_name, valarray<valarray<double>> results_valarray) {
-        ofstream results_file(file_name);
-        for (const auto& result: results_valarray) {
-            for (const auto& value: result) {
-                results_file << value;
-                if (value == result[result.size()-1]) {
-                    results_file << "\n";
-                } else {
-                    results_file << " ";
-                }
+    void write_junctions_to_file(vector<Ring> rings, string file_name) {
+        ofstream junctions_file(file_name);
+        for(auto ring: rings) {
+            for (auto junction: ring.junctions) {
+                junctions_file << get<0>(junction) << " " << get<1>(junction) << endl; 
             }
+        }
+        junctions_file.close();
+    }
+
+    void write_results_to_file(Eigen::VectorXd V, string file_name) {
+        ofstream results_file(file_name);
+        for (auto element: V) {
+            results_file << element << endl;
         }
         results_file.close();
     }
@@ -355,10 +372,18 @@ class File_Handler {
         return rings;
     }
 
-    void write_plot_pars_to_file(const string file_name, const double box_width, const double box_length) {
-        ofstream pars_file(file_name);
-        pars_file << box_width << endl << box_length;
-        pars_file.close();
+    void write_resistance_to_file(const string file_name, const double total_resistance, const int width_iteration_count, const int length_iteration_count) {
+        
+        if ((width_iteration_count==0) && (length_iteration_count==0)) {//first iteration, so delete previous content of the file
+           ofstream resistance_file;
+           resistance_file.open(file_name, ofstream::trunc);
+           resistance_file.close();
+        }
+       
+        ofstream resistance_file;
+        resistance_file.open(file_name, ofstream::app);
+        resistance_file << total_resistance << endl;
+        resistance_file.close();
     }
 };
 
@@ -374,10 +399,10 @@ vector<Ring> generate_rings(const int N, const double box_width, const double bo
     vector<Ring> rings;         //create vector, will be filled with Ring objects
     for (int i=0; i < N; i++) {
         //choose variables
-        double r = r_min + distr()*(r_max-r_min);   //r between [r_min, r_max]
-        double x = -r + distr()*(box_width+2*r);      //x between [-r, box_witdh+r]
-        double y = r + distr()*(box_length-2*r);      //y between [r, box_length-r]
-        double R = R_min + distr()*(R_max-R_min);
+        double r = r_min + distr()*(r_max-r_min);   //r between [r_min, r_max[
+        double x = -r + distr()*(box_width+2*r);      //x between [-r, box_witdh+r[
+        double y = r + distr()*(box_length-2*r);      //y between [r, box_length-r[
+        double R = R_min + distr()*(R_max-R_min);     //R between [R_min, Rmax[
         Ring ring(x, y, r, R, i);          //create Ring object
         rings.push_back(ring);          //filling of vector
     }  
@@ -435,7 +460,7 @@ class Mat {
         }
     }
 
-    void build_matrix(vector<Ring> rings, double R_j, double V_diff, double box_width){
+    void build_matrix(vector<Ring> rings, double R_j, double V_diff, double box_width, vector<tuple<int, double>>&  current_contributions){
         cout << "Building matrix...\n";
         double R_p;
         double R_n;
@@ -450,10 +475,12 @@ class Mat {
                     // cout << "Case1\n";
 
                     R_n = ring.calc_resistance(get<2>(ring.junctions[junction_index]), ring.calc_angle_of_intersection_with_bound(0)[0]);
+                    current_contributions.push_back(make_tuple(node_counter, R_n));
                     if (junction_index == 0) {
                         if (ring.junctions.size() == 1) {   //only one junction at ring
                             R_p = ring.calc_resistance(ring.calc_angle_of_intersection_with_bound(0)[1], get<2>(ring.junctions[junction_index])); 
                             I[node_counter] += R_n*R_j*V_diff ;
+                            current_contributions.push_back(make_tuple(node_counter, R_p));
                         } else {
                             R_p = ring.calc_resistance(get<2>(ring.junctions.back()), get<2>(ring.junctions[junction_index]));   
                             set_element(node_counter, node_counter+ring.junctions.size()-1, -R_j*R_n);                                                                        //previous element
@@ -473,6 +500,7 @@ class Mat {
                     //side note: here we dont have to make seperate cases for when there is only one junction present, as the previous if-statement would handle this case
                     R_p = ring.calc_resistance(ring.calc_angle_of_intersection_with_bound(0)[1], get<2>(ring.junctions[junction_index]));
                     R_n = ring.calc_resistance(get<2>(ring.junctions[junction_index]), get<2>(ring.junctions[(junction_index+1) % ring.junctions.size()]));     
+                    current_contributions.push_back(make_tuple(node_counter, R_p));
 
                     if (junction_index == (ring.junctions.size()-1)){ //if this is the last junction, the next element should be put at the colomn of the first junction of this ring
                         R_n = ring.calc_resistance(get<2>(ring.junctions[junction_index]), get<2>(ring.junctions.front()));
@@ -544,12 +572,13 @@ class Mat {
         }
     }
    
-    Eigen::VectorXd solve_matrix(valarray<double> b_){
+    Eigen::VectorXd solve_matrix(valarray<double> b_, bool print_V){
         cout << "Solving matrix...\n";
+        //first, insert data in special matrix and vectors from Eigen
         Eigen::SparseMatrix<double> A(nr_rows_, nr_cols_);
         Eigen::VectorXd x (nr_cols_);
-        Eigen::VectorXd b (nr_cols_);
-        for (int i {0}; i < nr_rows_; i++){
+        Eigen::VectorXd b (nr_cols_);   
+        for (int i {0}; i < nr_rows_; i++){ 
             for (int j {0}; j < nr_cols_; j++){
                 A.insert(i, j) = matrix_[i][j];
             }
@@ -557,18 +586,28 @@ class Mat {
         for (int i {0}; i < b_.size(); i++) {
             b(i) = b_[i];
         }
-        
+        //solving the matrix using Eigen library
         A.makeCompressed();
         Eigen::SparseLU<Eigen::SparseMatrix<double>> solver;   
         solver.analyzePattern(A);
         solver.factorize(A);
         x = solver.solve(b);
+        //printing solutions if requested
+        if (print_V) {
+            cout << "Solutions:\n" << x << endl;
+        }
         
         return x;
     }
 };
 
-
+double calc_total_resistance(vector<tuple<int, double>> current_contributions, Eigen::VectorXd V, double V_diff) {
+    double total_current = 0;
+    for (auto element: current_contributions) {
+        total_current += (V_diff - V[get<0>(element)])/get<1>(element);  //add each contribution to the total current (Ohm's law I = V/R)
+    }
+    return (V_diff/total_current); //using Ohm's law again, this gives the total resistance of the circuit
+}
 
 int main() {
     cout << "START OF MAIN \n"; 
@@ -578,158 +617,223 @@ int main() {
     auto input_pars = file_handler.handle_input("input.txt");
 
     const int N = get<0>(input_pars);
-    const double box_width = get<1>(input_pars);
-    const double box_length = get<2>(input_pars);
-    const double V_diff = get<3>(input_pars);
-    const double r_min = get<4>(input_pars);
-    const double r_max = get<5>(input_pars);
-    const double R_min = get<6>(input_pars);
-    const double R_max = get<7>(input_pars);
-    const double R_j = get<8>(input_pars);
-    const bool print_G = get<9>(input_pars);
-    const bool print_V = get<10>(input_pars);
-    const bool import_rings = get<11>(input_pars);
-    const string rings_file_name = get<12>(input_pars);
+    const double box_width_min = get<1>(input_pars);
+    const double box_width_max = get<2>(input_pars);
+    const double box_width_iterations = get<3>(input_pars);
+    const double box_length_min = get<4>(input_pars);
+    const double box_length_max = get<5>(input_pars);
+    const double box_length_iterations = get<6>(input_pars);
+    const double V_diff = get<7>(input_pars);
+    const double r_min = get<8>(input_pars);
+    const double r_max = get<9>(input_pars);
+    const double R_min = get<10>(input_pars);
+    const double R_max = get<11>(input_pars);
+    const double R_j = get<12>(input_pars);
+    const bool print_G = get<13>(input_pars);
+    const bool print_V = get<14>(input_pars);
+    const bool import_rings = get<15>(input_pars);
+    const string rings_file_name = get<16>(input_pars);
 
     cout << endl << endl;
 
 
-    //---GENERATE RINGS---
-    vector<Ring> rings;
-    if (import_rings) {
-        rings = file_handler.read_rings_from_file(rings_file_name);
-    } else {
-        rings = generate_rings(N, box_width, box_length, r_min, r_max, R_min, R_max);
-    }
-    //write rings and plot parameters to .txt-files 
-    file_handler.write_rings_to_file(rings, "rings_all.txt");
-    file_handler.write_plot_pars_to_file("plot_pars.txt", box_width, box_length);
 
-    //---FIND CLUSTERS---
-    vector<vector<Ring>> clusters;
-    for (auto& ring: rings) {
-        vector<Ring> rings_to_check; //will be filled with rings that still need to be checked for overlapping rings
-        bool done;
-
-        vector<Ring> cluster;
-        if (ring.cluster_index == -1){    //ring is not yet in a cluster, so we add a new, empty cluster to clusters
-            cluster.push_back(ring);  //add this ring to the new cluster
-            clusters.push_back(cluster);    // add the new cluster to clusters
-            ring.cluster_index = clusters.size()-1;    // update the new cluster_index for the ring
-            rings_to_check.push_back(ring);
-            done = false;
+    // ========================
+    // ===START MAIN PROGRAM===
+    // ========================
+    double box_width;
+    double box_length;
+    
+    for (int width_iteration_count = 0; width_iteration_count < box_width_iterations; width_iteration_count++) {    //iterate over different widths of box
+        if (box_width_iterations==1) {
+            box_width = box_width_max;
         } else {
-            done = true;
+            box_width = box_width_min + (box_width_max-box_width_min)/(box_width_iterations-1)*width_iteration_count;
         }
         
-        while (not done) {
-            auto& ring_ = rings_to_check.back();   //we now look for rings that overlap with the last ring in the list
-            ring_.cluster_index = clusters.size()-1;    //first I want to add the cluster_index to the ring, which is why I used a reference in the previous line
-            rings_to_check.pop_back();  
+        for (int length_iteration_count = 0; length_iteration_count < box_length_iterations; length_iteration_count++) {    //iterate over different lengths of box
+            if (box_length_iterations==1) {
+                box_length = box_length_max;
+            } else {
+                box_length = box_length_min + (box_length_max-box_length_min)/(box_length_iterations-1)*length_iteration_count;
+            }
 
-            auto ring = ring_;  //we continue with a copy of ring_, because ring_ was defined as the last element of a vector. So if we change that vector in the following lines, ring_ would also change, which is not what I want
-            for (auto& ring2: rings){  //look if the ring has overlap with other rings
-                if (ring.check_overlap(ring2)){      //found a connecting ring that is not in the cluster
-                    if (ring2.cluster_index == -1){             
-                        clusters[ring.cluster_index].push_back(ring2);     //add ring2 to the cluster   
-                        ring2.cluster_index = clusters.size()-1;           //assign the cluster_index to ring2                        
-                        rings_to_check.push_back(ring2);                   //add the ring to rings_to_check
+
+            vector<tuple<int,double>> current_contributions; //to keep track of current going through circuit
+
+            bool running = true;
+            while (running) {   //this while loop enables the program to run again if no network is formed that spans the box
+                
+                //---GENERATE OR IMPORT RINGS---
+                vector<Ring> rings;
+                if (import_rings) {
+                    rings = file_handler.read_rings_from_file(rings_file_name);
+                } else {
+                    rings = generate_rings(N, box_width, box_length, r_min, r_max, R_min, R_max);
+                }
+                file_handler.write_rings_to_file(rings, "rings_all.txt");
+
+                //---FIND CLUSTERS---
+                vector<vector<Ring>> clusters;
+                for (auto& ring: rings) {
+                    vector<Ring> rings_to_check; //will be filled with rings that still need to be checked for overlapping rings
+                    bool done;
+
+                    vector<Ring> cluster;
+                    if (ring.cluster_index == -1){    //ring is not yet in a cluster, so we add a new, empty cluster to clusters
+                        cluster.push_back(ring);  //add this ring to the new cluster
+                        clusters.push_back(cluster);    // add the new cluster to clusters
+                        ring.cluster_index = clusters.size()-1;    // update the new cluster_index for the ring
+                        rings_to_check.push_back(ring);
+                        done = false;
+                    } else {
+                        done = true;
                     }
-                }        
+                    
+                    while (not done) {
+                        auto& ring_ = rings_to_check.back();   //we now look for rings that overlap with the last ring in the list
+                        ring_.cluster_index = clusters.size()-1;    //first I want to add the cluster_index to the ring, which is why I used a reference in the previous line
+                        rings_to_check.pop_back();  
 
-            }
-            if (rings_to_check.size() == 0) {   //the whole cluster has been searched through
-                done = true;
+                        auto ring = ring_;  //we continue with a copy of ring_, because ring_ was defined as the last element of a vector. So if we change that vector in the following lines, ring_ would also change, which is not what I want
+                        for (auto& ring2: rings){  //look if the ring has overlap with other rings
+                            if (ring.check_overlap(ring2)){      //found a connecting ring that is not in the cluster
+                                if (ring2.cluster_index == -1){             
+                                    clusters[ring.cluster_index].push_back(ring2);     //add ring2 to the cluster   
+                                    ring2.cluster_index = clusters.size()-1;           //assign the cluster_index to ring2                        
+                                    rings_to_check.push_back(ring2);                   //add the ring to rings_to_check
+                                }
+                            }        
+
+                        }
+                        if (rings_to_check.size() == 0) {   //the whole cluster has been searched through
+                            done = true;
+                        }
+                    }
+                }
+
+
+                //---REFILL CLUSTERS---
+                int clusters_size = clusters.size();
+                clusters = {};
+                clusters.resize(clusters_size);
+                for (auto& ring: rings) {
+                    clusters[ring.cluster_index].push_back(ring);
+                }
+                
+                //---FILTER OUT CLUSTERS THAT DON'T HIT EDGES---
+                vector<vector<Ring>> clusters_;
+                int cluster_index_main;
+                for (auto& cluster: clusters) {
+                    bool hit_left_edge = false;
+                    bool hit_right_edge = false;
+                    for (auto& ring: cluster) {
+                        if (abs(ring.get_x()) < ring.get_r()) {
+                            hit_left_edge = true;
+                        }
+                        if (abs(ring.get_x()-box_width) < ring.get_r()) {
+                            hit_right_edge = true;
+                        }
+                    }
+                    if (hit_left_edge && hit_right_edge) {
+                        clusters_.push_back(cluster);
+                        cluster_index_main = cluster.front().cluster_index; //get the cluster index of this cluster
+                        break;
+                    }
+                    
+                }
+                if (clusters_.size() == 0) {
+                    cout << "There are no clusters that touch both contacts. Trying again...\n";
+                    continue;
+                }
+                clusters = clusters_;
+                
+                
+
+
+                //---GIVE RINGS NEW INDICES AND FILTER RINGS---
+                sort(rings.begin(), rings.end(), sort_rings);
+                int index = 0;
+                for (auto& ring: rings) {
+                    if (ring.cluster_index == cluster_index_main) {
+                        ring.set_ring_index(index);
+                        index++;  
+                    } 
+                }
+
+
+
+                //---MAKE SURE THE FIRST AND THE LAST RING ARE AT THE BOUNDARY---
+                bool first_ring_found = false;
+                bool last_ring_found = false; 
+                for (auto ring: rings) {
+                    if (not first_ring_found) {
+                        if (abs(ring.get_x()) <= ring.get_r()) {
+                            first_ring_found = true;
+                            rings[ring.get_ring_index()] = rings.front();
+                            rings.front() = ring;
+                        }
+                    }
+                    if (not last_ring_found) {
+                        if (abs(ring.get_x() - box_width) <= ring.get_r()) {
+                            last_ring_found = true;
+                            rings[ring.get_ring_index()] = rings.back();
+                            rings.back() = ring;
+                        }
+                    }
+                    if (first_ring_found && last_ring_found) {
+                        break;
+                    }
+                }
+
+
+                
+                file_handler.write_rings_to_file(rings, "rings_main.txt");
+            
+                //---CALCULATE JUNCTIONS---
+                int amount_of_nodes = 0;
+                for (auto& ring: rings) {
+                    ring.calc_all_junctions(rings, box_width);
+                    //now sorting the junction based on increasing angle
+                    sort(ring.junctions.begin(), ring.junctions.end(), sort_junctions);
+                    amount_of_nodes += ring.junctions.size();
+                }    
+                file_handler.write_junctions_to_file(rings, "junctions.txt");
+
+                //---BUILDING MATRIX---
+                cout << "matrix size: " << amount_of_nodes << endl;
+                Mat G(amount_of_nodes,amount_of_nodes);
+                G.build_matrix(rings, R_j, V_diff, box_width, current_contributions);
+                if (print_G) {
+                    G.print();
+                }
+
+
+                
+                //---SOLVING THE MATRIX---
+                Eigen::VectorXd V = G.solve_matrix(G.I, print_V);
+                file_handler.write_results_to_file(V, "results.txt");
+                
+                const double total_resistance = calc_total_resistance(current_contributions, V, V_diff);
+                file_handler.write_resistance_to_file("resistances.txt", total_resistance, width_iteration_count, length_iteration_count);
+
+
+                running = false;
             }
         }
     }
 
 
-    //---REFILL CLUSTERS---
-    int clusters_size = clusters.size();
-    clusters = {};
-    clusters.resize(clusters_size);
-    for (auto& ring: rings) {
-        clusters[ring.cluster_index].push_back(ring);
-    }
-    
-    //---FILTER OUT CLUSTERS THAT DON'T HIT EDGES---
-    vector<vector<Ring>> clusters_;
-    int cluster_index_main;
-    for (auto& cluster: clusters) {
-        bool hit_left_edge = false;
-        bool hit_right_edge = false;
-        for (auto& ring: cluster) {
-            if (abs(ring.get_x()) < ring.get_r()) {
-                hit_left_edge = true;
-            }
-            if (abs(ring.get_x()-box_width) < ring.get_r()) {
-                hit_right_edge = true;
-            }
-        }
-        if (hit_left_edge && hit_right_edge) {
-            clusters_.push_back(cluster);
-            cluster_index_main = cluster.front().cluster_index; //get the cluster index of this cluster
-            break;
-        }
-        
-    }
-    if (clusters_.size() == 0) {
-        cout << "There are no clusters that touch both contacts.\n";
-        return 1;
-    }
-    clusters = clusters_;
-    
-    
-
-
-    //---GIVE RINGS NEW INDICES AND FILTER RINGS---
-    sort(rings.begin(), rings.end(), sort_rings);
-    int index = 0;
-    for (auto& ring: rings) {
-        if (ring.cluster_index == cluster_index_main) {
-            ring.set_ring_index(index);
-            index++;  
-        } 
-    }
+    cout << "END OF MAIN";
+    return 0;
+}
 
 
 
-    //---MAKE SURE THE FIRST AND THE LAST RING ARE AT THE BOUNDARY---
-    bool first_ring_found = false;
-    bool last_ring_found = false; 
-    for (auto ring: rings) {
-        if (not first_ring_found) {
-            if (abs(ring.get_x()) <= ring.get_r()) {
-                first_ring_found = true;
-                rings[ring.get_ring_index()] = rings.front();
-                rings.front() = ring;
-            }
-        }
-        if (not last_ring_found) {
-            if (abs(ring.get_x() - box_width) <= ring.get_r()) {
-                last_ring_found = true;
-                rings[ring.get_ring_index()] = rings.back();
-                rings.back() = ring;
-            }
-        }
-        if (first_ring_found && last_ring_found) {
-            break;
-        }
-    }
 
 
-    
-    file_handler.write_rings_to_file(rings, "rings_main.txt");
-   
-    //---CALCULATE JUNCTIONS---
-    int amount_of_nodes = 0;
-    for (auto& ring: rings) {
-        ring.calc_all_junctions(rings, box_width);
-        //now sorting the junction based on increasing angle
-        sort(ring.junctions.begin(), ring.junctions.end(), sort_junctions);
-        amount_of_nodes += ring.junctions.size();
-    }    
+
+
 
     // cout << "Printing junctions:\n"; 
     // for (auto ring: rings) {
@@ -739,28 +843,3 @@ int main() {
     //     }
     //     cout << endl;
     // }
-
-
-    //---BUILDING MATRIX---
-    cout << "matrix size: " << amount_of_nodes << endl;
-    Mat G(amount_of_nodes,amount_of_nodes);
-
-    G.build_matrix(rings, R_j, V_diff, box_width);
-
-    if (print_G) {
-        G.print();
-    }
-
-
-    
-    //---SOLVING THE MATRIX---
-    auto V = G.solve_matrix(G.I);
-
-    if (print_V) {
-        cout << endl << "Solutions:\n" << V << endl;
-    }
-
-
-    cout << "END OF MAIN";
-    return 0;
-}

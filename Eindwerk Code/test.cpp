@@ -224,8 +224,8 @@ class Mat {
 
 };
 
-int main() {
-    for (int i= 0; i< 0; i++) {
-        cout << "y";
-    }
+int main() {   
+    int a = 0;
+    double b = 0;
+    cout << a << b;
 }
