@@ -2,6 +2,12 @@ import matplotlib.pyplot as plt
 from itertools import islice
 import numpy as np
 
+def save(filepath, fig=None):
+    if not fig:
+        fig = plt.gcf()
+    plt.subplots_adjust(0,0,1,1,0,0)
+    fig.savefig(filepath,  bbox_inches='tight')
+
 
 def nth_index(iterable, value, n):
     matches = (idx for idx, val in enumerate(iterable) if val == value)
@@ -68,7 +74,10 @@ def draw_rings(file_name, show_ring_index):
     pars = read_plot_pars()
     plt.axis([0, float(pars[1]), 0, float(pars[4])])
     plt.gca().set_aspect("equal", adjustable = "box")
-    plt.show()
+    plt.xlabel("x (a.u.)")
+    plt.ylabel("y (a.u.)")
+    save("images\\rings.png")
+
 
 def plotV_of_x(junctions_file_name, results_file_name):
     junctions = []
@@ -93,14 +102,14 @@ def plotV_of_x(junctions_file_name, results_file_name):
     #plotting and text box
     fig, ax = plt.subplots()
     ax.plot(junctions, results, 'r+', junctions, poly1d_fn(junctions), 'k')
-    textstr = "Linear fit (V=mx+b):\n" + "m = " + str(coef[0]) + "\nb = " + str(coef[1])
+    textstr = "Linear fit (V=mx+b):\n" + "m = " + str(round(coef[0], 10)) + "\nb = " + str(round(coef[1], 11))
     props = dict(boxstyle='round', facecolor='white', alpha=1)
-    ax.text(0.45, 0.95, textstr, transform=ax.transAxes, fontsize = 14, verticalalignment = 'top', bbox = props)
+    ax.text(0.65, 0.95, textstr, transform=ax.transAxes, fontsize = 14, verticalalignment = 'top', bbox = props)
     plt.xlabel("x (a.u.)")
     plt.ylabel("Voltage (a.u.)")
     pars = read_plot_pars()
     ax.set_ylim([0, float(pars[6])])
-    plt.show()
+    save("images\V_of_x.png")
 
 def plotV_of_xy(junctions_file_name, results_file_name):
     junctions_x = []
@@ -125,7 +134,7 @@ def plotV_of_xy(junctions_file_name, results_file_name):
     ax.set_xlabel('x (a.u.)')
     ax.set_ylabel('y (a.u.)')
     ax.set_zlabel('Voltage (a.u.)')
-    plt.show()
+    save("images/V_of_xy.png")
 
 def plotR_of_box_dimensions(resistances_file_name, width_or_length):
     
@@ -147,10 +156,12 @@ def plotR_of_box_dimensions(resistances_file_name, width_or_length):
         
         #put width values in list to plot them
         box_width = box_width_min
-        for _ in range(box_width_iterations):
+        if (box_width_iterations!=1):    
+            for _ in range(box_width_iterations):
+                width_list.append(box_width)
+                box_width += (box_width_max-box_width_min)/(box_width_iterations-1)
+        else:
             width_list.append(box_width)
-            box_width += (box_width_max-box_width_min)/(box_width_iterations-1)
-
         #plotting
         plt.plot(width_list, resistances, 'r+')
 
@@ -176,18 +187,15 @@ def plotR_of_box_dimensions(resistances_file_name, width_or_length):
     
     plt.xlabel("Box " + width_or_length + " (a.u.)")
     plt.ylabel("Resistance (a.u.)")
-    plt.show()
+    save("images/R_of_dims.png")
+    
 
 
 
 
 
 
-
-
-
-
-draw_rings("rings_main.txt", True)
-plotV_of_x("junctions.txt", "results.txt")
-plotV_of_xy("junctions.txt", "results.txt")
-plotR_of_box_dimensions("resistances.txt", "length")
+draw_rings("rings_all.txt", False)
+# plotV_of_x("junctions.txt", "results.txt")
+# plotV_of_xy("junctions.txt", "results.txt")
+# plotR_of_box_dimensions("resistances.txt", "width")
