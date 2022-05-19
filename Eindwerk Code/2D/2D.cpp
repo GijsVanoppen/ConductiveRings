@@ -646,7 +646,7 @@ int main() {
     cout << "Input parameters:\n";
     auto input_pars = file_handler.handle_input("input.txt");
 
-    const int N = get<0>(input_pars);
+    int N = get<0>(input_pars);
     const double box_width_min = get<1>(input_pars);
     const double box_width_max = get<2>(input_pars);
     const double box_width_iterations = get<3>(input_pars);
@@ -693,6 +693,7 @@ int main() {
             bool running = true;
             while (running) {   //this while loop enables the program to run again if no network is formed that spans the box
                 
+
                 //---GENERATE OR IMPORT RINGS---
                 vector<Ring> rings;
                 if (import_rings) {
@@ -701,10 +702,6 @@ int main() {
                     rings = generate_rings(N, box_width, box_length, r_min, r_max, R_min, R_max);
                 }
                 file_handler.write_rings_to_file(rings, "rings_all.txt");
-
-
-
-
 
 
                 //---FIND CLUSTERS---
@@ -845,7 +842,16 @@ int main() {
                 }
 
 
-                
+
+                // cout << "Printing junctions:\n"; 
+                // for (auto ring: rings) {
+                //     cout << "Junctions of ring " <<ring.get_ring_index() << endl;
+                //     for (auto junction: ring.junctions) {
+                //         cout << get<0>(junction) << " " << get<1>(junction) << " " << get<2>(junction) <<" " << get<3>(junction) << endl; 
+                //     }
+                //     cout << endl;
+                // }
+
                 //---SOLVING THE MATRIX---
                 Eigen::VectorXd V = G.solve_matrix(G.I, print_V);
                 file_handler.write_results_to_file(V, "results.txt");
@@ -857,7 +863,17 @@ int main() {
                 
                 running = false;
             }
+    
+            if (box_length_iterations != 1) {
+                N += N*(box_length_max-box_length_min)/(box_length_iterations-1)/box_length;
+            }
+        
         }
+
+        if (box_width_iterations != 1) {
+            N += N*(box_width_max-box_width_min)/(box_width_iterations-1)/box_width;
+        }
+    
     }
 
 
@@ -871,12 +887,3 @@ int main() {
 
 
 
-
-    // cout << "Printing junctions:\n"; 
-    // for (auto ring: rings) {
-    //     cout << "Junctions of ring " <<ring.get_ring_index() << endl;
-    //     for (auto junction: ring.junctions) {
-    //         cout << get<0>(junction) << " " << get<1>(junction) << " " << get<2>(junction) <<" " << get<3>(junction) << endl; 
-    //     }
-    //     cout << endl;
-    // }
