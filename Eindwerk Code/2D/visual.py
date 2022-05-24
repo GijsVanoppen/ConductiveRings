@@ -74,9 +74,10 @@ def draw_rings(file_name, show_ring_index):
     pars = read_plot_pars()
     plt.axis([0, float(pars[1]), 0, float(pars[4])])
     plt.gca().set_aspect("equal", adjustable = "box")
-    plt.xlabel("x (a.u.)")
-    plt.ylabel("y (a.u.)")
+    plt.xlabel("x (a.u.)", fontsize = 16)
+    plt.ylabel("y (a.u.)", fontsize = 16)
     save("images\\rings.png")
+    plt.show()
 
 
 def plotV_of_x(junctions_file_name, results_file_name):
@@ -102,14 +103,15 @@ def plotV_of_x(junctions_file_name, results_file_name):
     #plotting and text box
     fig, ax = plt.subplots()
     ax.plot(junctions, results, 'r+', junctions, poly1d_fn(junctions), 'k')
-    textstr = "Linear fit (V=mx+b):\n" + "m = " + str(round(coef[0], 10)) + "\nb = " + str(round(coef[1], 11))
+    textstr = "Linear fit (v=ax+b):\n" + "a = " + str(round(coef[0], 10)) + "\nb = " + str(round(coef[1], 11))
     props = dict(boxstyle='round', facecolor='white', alpha=1)
     ax.text(0.65, 0.95, textstr, transform=ax.transAxes, fontsize = 14, verticalalignment = 'top', bbox = props)
-    plt.xlabel("x (a.u.)")
-    plt.ylabel("Voltage (a.u.)")
+    plt.xlabel("x (a.u.)", fontsize = 16)
+    plt.ylabel("Voltage (a.u.)", fontsize = 16)
     pars = read_plot_pars()
     ax.set_ylim([0, float(pars[6])])
     save("images\V_of_x.png")
+    plt.show()
 
 def plotV_of_xy(junctions_file_name, results_file_name):
     junctions_x = []
@@ -131,10 +133,11 @@ def plotV_of_xy(junctions_file_name, results_file_name):
     fig = plt.figure()
     ax = plt.axes(projection='3d')
     ax.scatter3D(junctions_x, junctions_y, results, c = 'r', marker = '+')
-    ax.set_xlabel('x (a.u.)')
-    ax.set_ylabel('y (a.u.)')
-    ax.set_zlabel('Voltage (a.u.)')
+    ax.set_xlabel('x (a.u.)', fontsize = 16)
+    ax.set_ylabel('y (a.u.)', fontsize = 16)
+    ax.set_zlabel('Voltage (a.u.)', fontsize = 16)
     save("images/V_of_xy.png")
+    plt.show()
 
 def plotR_of_box_dimensions(resistances_file_name, width_or_length):
     
@@ -163,7 +166,8 @@ def plotR_of_box_dimensions(resistances_file_name, width_or_length):
         else:
             width_list.append(box_width)
         #plotting
-        plt.plot(width_list, resistances, 'r+')
+        plt.plot(width_list, resistances, 'r+', ms = 20)
+        plt.xlabel("sheet length (a.u.)", fontsize = 16)
 
     elif width_or_length == "length":
         #get length values
@@ -180,14 +184,15 @@ def plotR_of_box_dimensions(resistances_file_name, width_or_length):
             box_length += (box_length_max-box_length_min)/box_length_iterations
 
         #plotting
-        plt.plot(length_list, resistances, 'r+')
+        plt.plot(length_list, resistances, 'r+', ms= 20)
+        plt.xlabel("sheet width (a.u.)", fontsize= 16)
 
     else:
         print("Failed to plot R. Second parameter should be \"width\" or \"length\"")
     
-    plt.xlabel("Box " + width_or_length + " (a.u.)")
-    plt.ylabel("Resistance (a.u.)")
+    plt.ylabel("Resistance (a.u.)", fontsize = 16)
     save("images/R_of_dims.png")
+    plt.show()
     
 
 
@@ -195,7 +200,7 @@ def plotR_of_box_dimensions(resistances_file_name, width_or_length):
 
 
 
-draw_rings("rings_all.txt", False)
-# plotV_of_x("junctions.txt", "results.txt")
-# plotV_of_xy("junctions.txt", "results.txt")
-# plotR_of_box_dimensions("resistances.txt", "width")
+draw_rings("rings_main.txt", False)
+plotV_of_x("junctions.txt", "results.txt")
+plotV_of_xy("junctions.txt", "results.txt")
+plotR_of_box_dimensions("resistances.txt", "length")

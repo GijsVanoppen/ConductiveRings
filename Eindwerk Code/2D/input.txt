@@ -1,17 +1,17 @@
-Amount of rings (N):20
-Minimum box width:3
-Maximum box width:3
+Amount of rings (N):100
+Minimum box width:5
+Maximum box width:5
 Box width iterations:1
-Minimum box length:3
-Maximum box length:5
-Box length iterations:5
+Minimum box length:5
+Maximum box length:10
+Box length iterations:6
 Voltage difference (V_diff):1
-Minimum ring radius (r_min):1
-Maximum ring radius (r_max):2
+Minimum ring radius (r_min):0.5
+Maximum ring radius (r_max):0.5
 Minimum resistivity (R_min):1
 Maximum resistivity (R_max):1
 Junction resistance (R_j):1
 print_G:0
 print_V:0
 Import rings:0
-rings_file_name (if imported):problem.txt
+rings_file_name (if imported):test.txt

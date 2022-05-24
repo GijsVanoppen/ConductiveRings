@@ -12,7 +12,7 @@ def draw_graph(file_name, r):
         R_tot_lst.append(R_tot)
         print(a, " ", R_tot)
     plt.xlabel("Lattice constant a (a.u.)")
-    plt.ylabel("Total resistance R_tot (a.u.)")
+    plt.ylabel("Total resistance (a.u.)")
     plt.scatter(a_lst, R_tot_lst)
     f.close()
     plt.show()

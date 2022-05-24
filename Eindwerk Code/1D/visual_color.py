@@ -391,6 +391,7 @@ for i in range(1,len(circles)-1):
     draw_bottom_arc(circles, i, V)
     draw_left_arc(circles, i, V)
     draw_right_arc(circles, i, V)
+    
 draw_first_circle(circles)
 draw_last_circle(circles)
 

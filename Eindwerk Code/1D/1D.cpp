@@ -335,6 +335,7 @@ class Mat {
 
         auto junctions = calc_junctions_first(circles, r);
 
+
         //node right up
         R_ver = calc_wire_resistance(circles[0], junctions[2], junctions[3], R);
         R_hor = calc_wire_resistance(circles[0], junctions[0], junctions[2], R);

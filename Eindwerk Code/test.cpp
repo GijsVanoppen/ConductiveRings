@@ -225,7 +225,9 @@ class Mat {
 };
 
 int main() {   
-    int a = 0;
-    double b = 0;
-    cout << a << b;
+    for (int i; i < 2; i++) {
+        bool x = true;
+        cout << x << endl;
+    }
+
 }
